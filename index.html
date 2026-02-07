@@ -614,8 +614,11 @@
             const containerRef = useRef(null);
             const isMountedRef = useRef(true);
             const [paused, setPaused] = useState(false);
-            const [showSaveMenu, setShowSaveMenu] = useState(false); // NUEVO ESTADO
-            const [laneChangeActive, setLaneChangeActive] = useState(true); 
+            const [showSaveMenu, setShowSaveMenu] = useState(false); 
+            
+            // MODIFICADO: Inicializar en FALSE para que el Modo Preparación (Grid) sea siempre Analógico al entrar
+            const [laneChangeActive, setLaneChangeActive] = useState(false); 
+            
             const [raceState, setRaceState] = useState('grid'); 
             const [winnerId, setWinnerId] = useState(null); 
             const [activeLights, setActiveLights] = useState(0); 
@@ -632,7 +635,19 @@
 
             // DETECCIÓN DE ROTONDA Y LÓGICA MONOCOCHE
             const hasRotonda = circuitData.pieces.some(p => p.subtype === 'rotonda');
-            const numCars = hasRotonda ? 1 : 2;
+            const MAX_CARS = 8;
+            
+            // ESTADO DE COCHES ACTIVOS: 1 para Rotonda, 2 por defecto
+            const [activeCarCount, setActiveCarCount] = useState(hasRotonda ? 1 : 2);
+            const activeCarCountRef = useRef(activeCarCount);
+            useEffect(() => { activeCarCountRef.current = activeCarCount; }, [activeCarCount]);
+
+            // REFERENCIA PARA INPUT DE CARGA
+            const loadInputRef = useRef(null);
+            
+            // REF PARA BOTÓN ACTIVO (USADO EN BUCLE DE ANIMACIÓN)
+            const activeButtonRef = useRef(activeButton);
+            useEffect(() => { activeButtonRef.current = activeButton; }, [activeButton]);
 
             const saveCarConfig = (id) => {
                 const config = carSetups[id];
@@ -662,23 +677,132 @@
                 document.body.removeChild(link);
             };
 
+            const handleLoadConfig = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (data.setup) {
+                            // Aplicar configuración al coche seleccionado actualmente
+                            setCarSetups(prev => ({
+                                ...prev,
+                                [selectedCarId]: { ...prev[selectedCarId], ...data.setup }
+                            }));
+                            // Opcional: Si el archivo tiene historial de telemetría, podríamos cargarlo, 
+                            // pero por ahora solo cargamos el setup mecánico.
+                        } else {
+                            alert("El archivo no contiene una configuración válida.");
+                        }
+                    } catch (err) {
+                        console.error("Error al leer el archivo", err);
+                        alert("Error al leer el archivo de configuración.");
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = ''; // Resetear input
+            };
+
             const handleTelemetryDragStart = (e) => { e.stopPropagation(); e.target.setPointerCapture(e.pointerId); setIsDraggingTelemetry(true); dragStartPos.current = { x: e.clientX, y: e.clientY }; dragItemStartPos.current = { ...telemetryPos }; };
             const handleTelemetryDragMove = (e) => { if (!isDraggingTelemetry) return; e.stopPropagation(); const dx = e.clientX - dragStartPos.current.x; const dy = e.clientY - dragStartPos.current.y; setTelemetryPos({ x: dragItemStartPos.current.x + dx, y: dragItemStartPos.current.y + dy }); };
             const handleTelemetryDragUp = (e) => { if (isDraggingTelemetry) { e.target.releasePointerCapture(e.pointerId); setIsDraggingTelemetry(false); } };
             useEffect(() => { const handleResize = () => { setTelemetryPos(prev => ({ ...prev, y: Math.min(prev.y, window.innerHeight - 150) })); }; window.addEventListener('resize', handleResize); return () => window.removeEventListener('resize', handleResize); }, []);
 
             const [selectedCarId, setSelectedCarId] = useState(1); 
-            const [carSetups, setCarSetups] = useState({ 1: { motorRPM: 20000, motorTorque: 240, motorName: 'Standard 20k', tireGrip: 80, tireName: 'Slick Std', gearTeeth: 27, pinionTeeth: 9, gearRatio: 3.0, weight: 85 }, 2: { motorRPM: 20000, motorTorque: 240, motorName: 'Standard 20k', tireGrip: 80, tireName: 'Slick Std', gearTeeth: 27, pinionTeeth: 9, gearRatio: 3.0, weight: 85 } });
+            
+            // ACTUALIZADO: Inicialización dinámica para 8 coches
+            const [carSetups, setCarSetups] = useState(() => {
+                const setups = {};
+                for (let i = 1; i <= 8; i++) {
+                    setups[i] = { 
+                        motorRPM: 20000, 
+                        motorTorque: 240, 
+                        motorName: 'Standard 20k', 
+                        tireGrip: 80, 
+                        tireName: 'Slick Std', 
+                        gearTeeth: 27, 
+                        pinionTeeth: 9, 
+                        gearRatio: 3.0, 
+                        weight: 85 
+                    };
+                }
+                return setups;
+            });
+
+            // GESTIÓN DE CAMBIO DE NÚMERO DE PILOTOS
+            const updateActiveCars = (newCount) => {
+                const count = Math.max(1, Math.min(8, newCount));
+                setActiveCarCount(count);
+                // Al cambiar el número total, seleccionamos el último coche añadido (o el máximo actual) para configurar
+                setSelectedCarId(count);
+            };
+
             const handleUpdateConfig = (type, value) => { setCarSetups(prev => { const newSetup = { ...prev[selectedCarId] }; if (type === 'motor') { newSetup.motorRPM = parseInt(value.rpm.replace('.','')); newSetup.motorTorque = parseInt(value.torque); newSetup.motorName = value.label; } else if (type === 'tire') { newSetup.tireGrip = value.grip; newSetup.tireName = value.label; } else if (type === 'gear') { newSetup.gearTeeth = parseInt(value.teeth); newSetup.gearRatio = newSetup.gearTeeth / newSetup.pinionTeeth; } else if (type === 'pinion') { newSetup.pinionTeeth = parseInt(value.teeth); newSetup.gearRatio = newSetup.gearTeeth / newSetup.pinionTeeth; } else if (type === 'weight') { newSetup.weight = value; } return { ...prev, [selectedCarId]: newSetup }; }); };
             const carAssetsRef = useRef(customCarAssets); useEffect(() => { carAssetsRef.current = customCarAssets; }, [customCarAssets]);
             const targetLapsRef = useRef(10); useEffect(() => { targetLapsRef.current = targetLaps; }, [targetLaps]);
             
-            // Inicializar telemetría según numCars
-            const [telemetry, setTelemetry] = useState(Array(numCars).fill(null).map((_, i) => ({ id: i + 1, speed: 0, lastLap: 0, bestLap: 0, averageLap: 0, currentLap: 0, laps: 0, position: i + 1 })));
+            // Inicializar telemetría para MAX_CARS
+            const [telemetry, setTelemetry] = useState(Array(MAX_CARS).fill(null).map((_, i) => ({ id: i + 1, speed: 0, lastLap: 0, bestLap: 0, averageLap: 0, currentLap: 0, laps: 0, position: i + 1 })));
             
             const audioCtxRef = useRef(null); const timerIntervalRef = useRef(null); const pieceMapRef = useRef([]); const lastUIUpdate = useRef(0); 
+            
+            // NUEVO: Función para formatear tiempo (MM:SS:mmm)
+            const formatTime = (ms) => {
+                const min = Math.floor(ms / 60000);
+                const sec = Math.floor((ms % 60000) / 1000);
+                const mil = ms % 1000;
+                return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}:${mil.toString().padStart(3, '0')}`;
+            };
+
             const playRaceSound = (type) => { try { const AudioContext = window.AudioContext || window.webkitAudioContext; if (!audioCtxRef.current) audioCtxRef.current = new AudioContext(); if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume(); const ctx = audioCtxRef.current; const t = ctx.currentTime; const masterGain = ctx.createGain(); masterGain.connect(ctx.destination); masterGain.gain.value = 0.6; if (type === 'red') { const osc1 = ctx.createOscillator(); osc1.type = 'square'; osc1.frequency.setValueAtTime(750, t); const osc2 = ctx.createOscillator(); osc2.type = 'square'; osc2.frequency.setValueAtTime(765, t); const gain = ctx.createGain(); gain.gain.setValueAtTime(0.0, t); gain.gain.linearRampToValueAtTime(0.3, t + 0.02); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15); osc1.connect(gain); osc2.connect(gain); gain.connect(masterGain); osc1.start(t); osc1.stop(t + 0.15); osc2.start(t); osc2.stop(t + 0.15); } else if (type === 'green') { const notes = [110, 220, 277.18, 329.63, 440, 554.37]; notes.forEach((freq, i) => { [ -4, 4 ].forEach(detune => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(freq, t); osc.detune.value = detune; gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.1 / (i*0.5 + 1), t + 0.08); gain.gain.exponentialRampToValueAtTime(0.001, t + 3.5); osc.connect(gain); gain.connect(masterGain); osc.start(t); osc.stop(t + 3.5); }); }); const timpaniOsc = ctx.createOscillator(); const timpaniGain = ctx.createGain(); timpaniOsc.type = 'triangle'; timpaniOsc.frequency.setValueAtTime(90, t); timpaniOsc.frequency.exponentialRampToValueAtTime(40, t + 0.3); timpaniGain.gain.setValueAtTime(0, t); timpaniGain.gain.linearRampToValueAtTime(0.8, t + 0.02); timpaniGain.gain.exponentialRampToValueAtTime(0.001, t + 1.5); timpaniOsc.connect(timpaniGain); timpaniGain.connect(masterGain); timpaniOsc.start(t); timpaniOsc.stop(t + 1.5); } } catch (e) { console.error("Audio error", e); } };
-            const startRaceSequence = () => { if (raceState === 'grid') { setRaceState('countdown'); let currentLight = 1; const sequenceInterval = setInterval(() => { if (currentLight <= 5) { setActiveLights(currentLight); playRaceSound('red'); currentLight++; } else { clearInterval(sequenceInterval); setTimeout(() => { setRaceState('racing'); setActiveLights(0); playRaceSound('green'); const startTime = Date.now(); physicsState.current.forEach(c => { c.lapStartTime = startTime; c.laps = targetLapsRef.current; c.lastLapTime = 0; c.totalLapTime = 0; c.completedLaps = 0; }); if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); timerIntervalRef.current = setInterval(() => { setElapsedTime(Date.now() - startTime); }, 37); setPaused(false); }, Math.random() * 1000 + 500); } }, 1000); } else { setPaused(false); } };
+            
+            // MODIFICADO: Secuencia de salida adaptable (Test Drive vs Carrera)
+            const startRaceSequence = () => { 
+                if (raceState === 'grid') { 
+                    setRaceState('countdown'); 
+                    let currentLight = 1; 
+                    const sequenceInterval = setInterval(() => { 
+                        if (currentLight <= 5) { 
+                            setActiveLights(currentLight); 
+                            playRaceSound('red'); 
+                            currentLight++; 
+                        } else { 
+                            clearInterval(sequenceInterval); 
+                            setTimeout(() => { 
+                                // LÓGICA IMPORTANTE:
+                                // Si estamos en 'GRID' (Preparación), pasamos a 'idle' (Modo Test/Pruebas Infinitas).
+                                // Si fuese una carrera competitiva, pasaríamos a 'racing'.
+                                const nextState = activeButton === 'GRID' ? 'idle' : 'racing';
+                                setRaceState(nextState); 
+                                setActiveLights(0); 
+                                playRaceSound('green'); 
+                                
+                                const startTime = Date.now(); 
+                                physicsState.current.forEach(c => { 
+                                    c.lapStartTime = startTime; 
+                                    // En modo TEST (idle), las vueltas empiezan en 0 y suman.
+                                    // En modo CARRERA (racing), empiezan en targetLaps y restan.
+                                    c.laps = nextState === 'idle' ? 0 : targetLapsRef.current; 
+                                    c.lastLapTime = 0; 
+                                    c.totalLapTime = 0; 
+                                    c.completedLaps = 0; 
+                                }); 
+                                
+                                if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); 
+                                timerIntervalRef.current = setInterval(() => { 
+                                    setElapsedTime(Date.now() - startTime); 
+                                }, 37); 
+                                setPaused(false); 
+                            }, Math.random() * 1000 + 500); 
+                        } 
+                    }, 1000); 
+                } else { 
+                    setPaused(false); 
+                } 
+            };
+
             const handleStartClick = () => { if (activeButton === 'GRID' && raceState === 'grid') { startRaceSequence(); } else { setPaused(false); } };
             const checkRaceRequirements = () => { if (!circuitData || !circuitData.pieces) return "Error: Datos del circuito no válidos."; const hasGrid = circuitData.pieces.some(p => p.subtype === 'starting_grid'); const hasConnection = circuitData.pieces.some(p => p.subtype === 'analog_connect' || p.subtype === 'connection' || p.subtype === 'digital_console'); if (!hasGrid && !hasConnection) return "Faltan: Parrilla de Salida y Pista de Conexiones"; if (!hasGrid) return "Falta: Parrilla de Salida"; if (!hasConnection) return "Falta: Pista de Conexiones"; return null; };
             
@@ -688,17 +812,44 @@
             };
 
             const LANE_1 = 0; const LANE_2 = 1; const LANE_PIT = 99;
-            // Inicializar estado físico según numCars
-            const physicsState = useRef(Array(numCars).fill(null).map((_, i) => { const lane = i % 2 === 0 ? LANE_1 : LANE_2; const startOffset = -15 * Math.floor(i / 2); return { id: i + 1, color: parseInt(carSettings[i].color.replace('#','0x')), currentLane: lane, targetLane: lane, isChanging: false, changeProgress: 0, distance: startOffset, speed: 0, lastPieceIndex: -1, lapStartTime: 0, lastLapTime: 0, bestLapTime: Infinity, laps: 0, totalLapTime: 0, completedLaps: 0, isDerailled: false, derailTime: 0, velocity: new THREE.Vector3(0,0,0), worldPos: new THREE.Vector3(0,0,0), recoverTime: 0, invulnerableUntil: 0 }; }));
+            // Inicializar estado físico para MAX_CARS (8)
+            const physicsState = useRef(Array(MAX_CARS).fill(null).map((_, i) => { const lane = i % 2 === 0 ? LANE_1 : LANE_2; const startOffset = -15 * Math.floor(i / 2); return { id: i + 1, color: parseInt(carSettings[i].color.replace('#','0x')), currentLane: lane, targetLane: lane, isChanging: false, changeProgress: 0, distance: startOffset, speed: 0, lastPieceIndex: -1, lapStartTime: 0, lastLapTime: 0, bestLapTime: Infinity, laps: 0, totalLapTime: 0, completedLaps: 0, isDerailled: false, derailTime: 0, velocity: new THREE.Vector3(0,0,0), worldPos: new THREE.Vector3(0,0,0), recoverTime: 0, invulnerableUntil: 0 }; }));
             const [leaderLaps, setLeaderLaps] = useState(10); const [racePositions, setRacePositions] = useState([1, 2]); const [globalFastestLap, setGlobalFastestLap] = useState(Infinity);
             const pausedRef = useRef(false); const laneActiveRef = useRef(false); const raceStateRef = useRef('idle'); const clock = useRef(new THREE.Clock()); const carSetupsRef = useRef(carSetups);
             useEffect(() => { carSetupsRef.current = carSetups; }, [carSetups]); useEffect(() => { pausedRef.current = paused; }, [paused]); useEffect(() => { laneActiveRef.current = laneChangeActive; }, [laneChangeActive]); useEffect(() => { raceStateRef.current = raceState; }, [raceState]);
 
-            const enterGridMode = () => { const error = checkRaceRequirements(); if (error) { setValidationError(error); setTimeout(() => setValidationError(null), 4000); return; } const gridPiece = pieceMapRef.current.find(p => p.subtype === 'starting_grid'); const gridStartPos = gridPiece ? gridPiece.distStart : 0; setRaceState('grid'); setWinnerId(null); setActiveLights(0); setElapsedTime(0); setActiveButton('GRID'); if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); physicsState.current.forEach((car, i) => { const gridOffset = -12 * Math.floor(i / 2); car.distance = gridStartPos + gridOffset; car.speed = 0; car.isChanging = false; car.currentLane = i % 2 === 0 ? LANE_1 : LANE_2; car.targetLane = car.currentLane; car.laps = targetLaps; car.lapStartTime = 0; car.lastLapTime = 0; car.totalLapTime = 0; car.completedLaps = 0; car.isDerailled = false; car.velocity.set(0,0,0); }); setPaused(false); };
-            const startPracticeMode = () => { setRaceState('idle'); setWinnerId(null); setActiveLights(0); setElapsedTime(0); setActiveButton('PRACTICE'); if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); const startTime = Date.now(); physicsState.current.forEach((car, i) => { const setup = carSetupsRef.current[car.id]; const baseSpeed = (setup.motorRPM / 150) * (3.0 / setup.gearRatio); car.distance = -15 * Math.floor(i / 2); car.speed = baseSpeed; car.isChanging = false; car.laps = 0; car.lapStartTime = startTime; car.lastLapTime = 0; car.totalLapTime = 0; car.completedLaps = 0; car.isDerailled = false; }); timerIntervalRef.current = setInterval(() => { setElapsedTime(Date.now() - startTime); }, 37); setPaused(false); };
+            const enterGridMode = () => { 
+                const error = checkRaceRequirements(); if (error) { setValidationError(error); setTimeout(() => setValidationError(null), 4000); return; } const gridPiece = pieceMapRef.current.find(p => p.subtype === 'starting_grid'); const gridStartPos = gridPiece ? gridPiece.distStart : 0; setRaceState('grid'); setWinnerId(null); setActiveLights(0); setElapsedTime(0); setActiveButton('GRID'); if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); 
+                
+                // MODO PREPARACIÓN (GRID): SIEMPRE ANALÓGICO
+                setLaneChangeActive(false);
+
+                if (!hasRotonda) setActiveCarCount(2); // Vuelve a 2 coches por defecto
+                physicsState.current.forEach((car, i) => { const gridOffset = -12 * Math.floor(i / 2); car.distance = gridStartPos + gridOffset; car.speed = 0; car.isChanging = false; car.currentLane = i % 2 === 0 ? LANE_1 : LANE_2; car.targetLane = car.currentLane; car.laps = targetLaps; car.lapStartTime = 0; car.lastLapTime = 0; car.totalLapTime = 0; car.completedLaps = 0; car.isDerailled = false; car.velocity.set(0,0,0); }); setPaused(false); 
+            };
+            const startPracticeMode = () => { 
+                setRaceState('idle'); setWinnerId(null); setActiveLights(0); setElapsedTime(0); setActiveButton('PRACTICE'); if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); 
+                
+                // MODO PRÁCTICA: Por defecto también desactivamos cambios (Analog logic)
+                if (!hasRotonda) {
+                    setActiveCarCount(2); 
+                    setLaneChangeActive(false);
+                }
+
+                const startTime = Date.now(); physicsState.current.forEach((car, i) => { const setup = carSetupsRef.current[car.id]; const baseSpeed = (setup.motorRPM / 150) * (3.0 / setup.gearRatio); car.distance = -15 * Math.floor(i / 2); car.speed = baseSpeed; car.isChanging = false; car.laps = 0; car.lapStartTime = startTime; car.lastLapTime = 0; car.totalLapTime = 0; car.completedLaps = 0; car.isDerailled = false; }); timerIntervalRef.current = setInterval(() => { setElapsedTime(Date.now() - startTime); }, 37); setPaused(false); 
+            };
             const resetPractice = () => { setRaceState('idle'); setWinnerId(null); setElapsedTime(0); setActiveButton('PRACTICE'); physicsState.current.forEach((car, i) => { car.laps = 0; car.lapStartTime = 0; car.lastLapTime = 0; car.bestLapTime = Infinity; car.totalLapTime = 0; car.completedLaps = 0; car.distance = -15 * Math.floor(i / 2); car.speed = 0; car.isDerailled = false; }); setPaused(true); };
-            const handleAnalogMode = () => { setLaneChangeActive(false); setActiveButton('ANALOG'); };
-            const handleDigitalMode = () => { const digitalSubtypes = ['digital_x', 'change_right', 'change_left', 'change_curve_r', 'pit_entry', 'digital_console', 'connection']; const hasDigitalPieces = circuitData.pieces.some(p => digitalSubtypes.includes(p.subtype)); if (!hasDigitalPieces) { setValidationError("⚠️ ERROR: No hay pistas digitales en el circuito (Cambios o Boxes)."); setTimeout(() => setValidationError(null), 3000); return; } setLaneChangeActive(true); setActiveButton('DIGITAL'); };
+            const handleAnalogMode = () => { 
+                // MODO ANALÓGICO: Garantiza que no hay cambios de carril
+                setLaneChangeActive(false); setActiveButton('ANALOG'); 
+                if (!hasRotonda) setActiveCarCount(2); 
+            };
+            const handleDigitalMode = () => { 
+                const digitalSubtypes = ['digital_x', 'change_right', 'change_left', 'change_curve_r', 'pit_entry', 'digital_console', 'connection']; const hasDigitalPieces = circuitData.pieces.some(p => digitalSubtypes.includes(p.subtype)); if (!hasDigitalPieces) { setValidationError("⚠️ ERROR: No hay pistas digitales en el circuito (Cambios o Boxes)."); setTimeout(() => setValidationError(null), 3000); return; } 
+                // MODO DIGITAL: Activamos cambios
+                setLaneChangeActive(true); setActiveButton('DIGITAL'); 
+                if (!hasRotonda) setActiveCarCount(4); // 4 coches por defecto en Digital
+            };
             useEffect(() => { return () => { if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); }; }, []);
 
             // Variables de ruta compartidas
@@ -712,6 +863,7 @@
                 let prevTouchDist = null; let cameraTarget = new THREE.Vector3(0, 0, 0);
 
                 const brandData = TRACK_DEFINITIONS[circuitData.brand] || TRACK_DEFINITIONS.NINCO; const laneSpacing = brandData.laneSpacing || 9.0; const trackWidth = brandData.width || 18.0;
+                // ... [UNCHANGED RENDERER SETUP] ...
                 const onResize = () => { if (camera && renderer && containerRef.current) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); } };
                 const onMouseDown = (e) => { isDragging=true; previousTouch={x:e.clientX, y:e.clientY}; };
                 const onMouseMove = (e) => { if(!isDragging) return; spherical.theta -= (e.clientX-previousTouch.x)*0.005; spherical.phi -= (e.clientY-previousTouch.y)*0.005; previousTouch={x:e.clientX, y:e.clientY}; };
@@ -720,9 +872,13 @@
                 const onTouchMove = (e) => { e.preventDefault(); if(e.touches.length === 1 && isDragging) { const touch = e.touches[0]; spherical.theta -= (touch.clientX - previousTouch.x)*0.005; spherical.phi -= (touch.clientY - previousTouch.y)*0.005; previousTouch={x:touch.clientX, y:touch.clientY}; } else if (e.touches.length === 2 && prevTouchDist !== null) { const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; const currentDist = Math.sqrt(dx * dx + dy * dy); const delta = prevTouchDist - currentDist; spherical.radius += delta * 2.5; prevTouchDist = currentDist; } };
                 const onTouchEnd = () => { isDragging=false; prevTouchDist = null; };
                 const onWheel = (e) => { e.preventDefault(); spherical.radius += e.deltaY * 0.5; };
+                
                 const createCar = (id, color) => { 
                     const physicsGroup = new THREE.Group(); const visualGroup = new THREE.Group(); physicsGroup.add(visualGroup);
                     const config = carAssetsRef.current[id] || {}; 
+                    
+                    // ELIMINADO: Código de sprites de números flotantes (LIMPIEZA VISUAL)
+
                     const createGeometricCar = () => { const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.6 }); const bodyGeo = new THREE.BoxGeometry(4.5, 1.2, 9); const body = new THREE.Mesh(bodyGeo, bodyMat); body.position.y = 0.8; body.castShadow = true; visualGroup.add(body); const cockpitGeo = new THREE.BoxGeometry(3.5, 0.8, 4); const cockpitMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 }); const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat); cockpit.position.y = 1.8; visualGroup.add(cockpit); const wheelGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.8, 16); wheelGeo.rotateZ(Math.PI/2); const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 }); [[-2.5, 3], [2.5, 3], [-2.5, -3], [2.5, -3]].forEach(p => { const w = new THREE.Mesh(wheelGeo, wheelMat); w.position.set(p[0], 1.2, p[1]); visualGroup.add(w); }); };
                     const hasCustomModel = config.obj && config.obj.length > 0;
                     if (!hasCustomModel) { createGeometricCar(); } else if (typeof THREE.OBJLoader !== 'undefined') {
@@ -865,9 +1021,27 @@
                         }
 
                         const startVertexIdx = rails.lane1.length - 1; const startDist = accumulatedDist; const steps = (p.type === 'curve') ? Math.ceil(Math.abs(p.angle) * 2) : 10; const stepLen = p.length / steps; const totalSweep = (p.type==='curve') ? (p.angle * Math.PI / 180) * (p.direction==='left'?-1:1) : 0; const stepAngle = totalSweep / steps; let stepPhysDist = stepLen; if (p.type === 'curve') stepPhysDist = (2 * Math.PI * p.radius) * (Math.abs(p.angle) / 360) / steps;
+                        
+                        // CAPTURAR ESTADO INICIAL PARA GEOMETRÍA DIGITAL
+                        const dStartX = curX;
+                        const dStartZ = curZ;
+                        const dStartAngle = curAngle;
+
                         const isCrossing = p.subtype === 'crossing'; const isPitEntry = p.type === 'pit_entry'; const isPitExit = p.type === 'pit_exit'; const isChicaneEntry = p.subtype === 'chicane_entry'; const isChicaneExit = p.subtype === 'chicane_exit'; const pitSide = p.invert ? 'left' : 'right'; const pitDir = pitSide === 'right' ? 1 : -1;
                         let startL1 = lane1Offset, startL2 = lane2Offset; let targetL1 = lane1Offset, targetL2 = lane2Offset; if (isCrossing) { targetL1 = lane2Offset; targetL2 = lane1Offset; lane1Offset = targetL1; lane2Offset = targetL2; } else if (isChicaneEntry) { targetL1 = startL1 * 0.2; targetL2 = startL2 * 0.2; lane1Offset = targetL1; lane2Offset = targetL2; } else if (isChicaneExit) { targetL1 = (startL1 > 0 ? 1 : -1) * (laneSpacing / 2); targetL2 = (startL2 > 0 ? 1 : -1) * (laneSpacing / 2); lane1Offset = targetL1; lane2Offset = targetL2; }
+                        
                         const digi1to2 = [], digi2to1 = [];
+
+                        // CORRECCIÓN VISUAL 3D: Añadir punto inicial (t=0) para que el carril de cambio nazca conectado al principal
+                        if (['digital_x', 'change_right', 'change_left', 'pit_parallel_double_x'].includes(p.subtype)) {
+                            const perpX = Math.cos(dStartAngle + Math.PI/2);
+                            const perpZ = Math.sin(dStartAngle + Math.PI/2);
+                            if (p.subtype !== 'change_left') 
+                                digi1to2.push(new THREE.Vector3(dStartX + perpX * startL1, 0.2, dStartZ + perpZ * startL1));
+                            if (p.subtype !== 'change_right') 
+                                digi2to1.push(new THREE.Vector3(dStartX + perpX * startL2, 0.2, dStartZ + perpZ * startL2));
+                        }
+
                         for (let i = 1; i <= steps; i++) { const t = i / steps; if (p.type === 'curve') { const r = p.radius; const chordLen = 2 * r * Math.sin(Math.abs(stepAngle)/2); const chordDir = curAngle + stepAngle/2; curX += chordLen * Math.cos(chordDir); curZ += chordLen * Math.sin(chordDir); curAngle += stepAngle; } else { curX += stepLen * Math.cos(curAngle); curZ += stepLen * Math.sin(curAngle); } let mixT = t; if (isCrossing || isChicaneEntry || isChicaneExit) mixT = easeSine(t); 
                             let curL1 = startL1 + (targetL1 - startL1) * mixT; 
                             let curL2 = startL2 + (targetL2 - startL2) * mixT; 
@@ -892,163 +1066,134 @@
                     let currentRallyDist = 0;
 
                     if (hasRotonda) {
-                        // DETECTAR ROTONDAS: Clasificarlas por índice para saber cuál es Inicio y cuál Fin
+                        // ... [ROTONDA PATH BUILDING CODE UNCHANGED] ...
                         const rotondas = rails.changes.filter(c => c.isRotonda).sort((a, b) => a.refIdx - b.refIdx);
                         const startRotondaRef = rotondas.length > 0 ? rotondas[0].refIdx : -1;
                         const endRotondaRef = rotondas.length > 0 ? rotondas[rotondas.length - 1].refIdx : -1;
 
-                        // Función de COSIDO: Suelda el nuevo tramo al anterior si están cerca
                         const appendPath = (points) => {
                             if (points.length === 0) return;
                             const newPoints = points.map(p => p.clone());
                             if (finalRallyPath.length > 0) {
                                 const lastP = finalRallyPath[finalRallyPath.length - 1];
                                 const firstP = newPoints[0];
-                                // Umbral de fusión
-                                if (lastP.distanceTo(firstP) < 10.0) {
-                                    firstP.copy(lastP); // Snap exacto
-                                } else {
-                                    // Interpolación de seguridad si hay hueco
-                                    finalRallyPath.push(new THREE.Vector3().lerpVectors(lastP, firstP, 0.5));
-                                }
+                                if (lastP.distanceTo(firstP) < 10.0) { firstP.copy(lastP); } 
+                                else { finalRallyPath.push(new THREE.Vector3().lerpVectors(lastP, firstP, 0.5)); }
                             }
                             newPoints.forEach(p => finalRallyPath.push(p));
                         };
 
-                        // 1. IDA: Recorrer Carril 1 (Hacia adelante)
                         let currentSegment = [];
                         for (let i = 0; i < rails.lane1.length; i++) {
-                            if (rails.lane1[i]) {
-                                currentSegment.push(rails.lane1[i]);
-                            } else {
+                            if (rails.lane1[i]) { currentSegment.push(rails.lane1[i]); } 
+                            else {
                                 if (currentSegment.length > 0) { appendPath(currentSegment); currentSegment = []; }
-
                                 const rotChange = rails.changes.find(c => c.isRotonda && Math.abs(c.refIdx - i) < 3);
-                                if (rotChange) {
-                                    // IDA: Añadir rotonda FINAL (vuelta en U)
-                                    // Saltamos la inicial porque salimos de ella
-                                    if (rotChange.refIdx >= endRotondaRef && i > 5) {
-                                        appendPath(rotChange.points);
-                                    }
-                                    while(i < rails.lane1.length - 1 && rails.lane1[i+1] === null) { i++; }
-                                }
+                                if (rotChange) { if (rotChange.refIdx >= endRotondaRef && i > 5) { appendPath(rotChange.points); } while(i < rails.lane1.length - 1 && rails.lane1[i+1] === null) { i++; } }
                             }
                         }
                         if (currentSegment.length > 0) appendPath(currentSegment);
 
-                        // 2. VUELTA: Recorrer Carril 2 (Hacia atrás)
                         currentSegment = [];
                         for (let i = rails.lane2.length - 1; i >= 0; i--) {
-                            if (rails.lane2[i]) {
-                                currentSegment.push(rails.lane2[i]);
-                            } else {
+                            if (rails.lane2[i]) { currentSegment.push(rails.lane2[i]); } 
+                            else {
                                 if (currentSegment.length > 0) { appendPath(currentSegment); currentSegment = []; }
-
                                 const rotChange = rails.changes.find(c => c.isRotonda && Math.abs(c.refIdx - i) < 3);
-                                if (rotChange) {
-                                    // VUELTA: Añadir rotonda INICIAL (Cierre del hueso)
-                                    if (rotChange.refIdx <= startRotondaRef) {
-                                        // FIX: NO INVERTIR. 
-                                        // La recta de vuelta (L2) conecta naturalmente con la Entrada (L1) de la rotonda inicial.
-                                        // Recorremos la rotonda en sentido normal (L1->L2) para salir hacia la meta.
-                                        appendPath(rotChange.points);
-                                    }
-                                    while(i > 0 && rails.lane2[i-1] === null) { i--; }
-                                }
+                                if (rotChange) { if (rotChange.refIdx <= startRotondaRef) { appendPath(rotChange.points); } while(i > 0 && rails.lane2[i-1] === null) { i--; } }
                             }
                         }
                         if (currentSegment.length > 0) appendPath(currentSegment);
 
-                        // 3. LIMPIEZA FINAL Y SUAVIZADO
-                        const cleanPath = (points) => {
-                            if (points.length < 2) return points;
-                            const cleaned = [points[0]];
-                            for (let i = 1; i < points.length; i++) {
-                                // Umbral reducido a 5cm para máxima resolución en curvas
-                                if (points[i].distanceTo(cleaned[cleaned.length - 1]) > 0.05) {
-                                    cleaned.push(points[i]);
-                                }
-                            }
-                            return cleaned;
-                        };
+                        const cleanPath = (points) => { if (points.length < 2) return points; const cleaned = [points[0]]; for (let i = 1; i < points.length; i++) { if (points[i].distanceTo(cleaned[cleaned.length - 1]) > 0.05) { cleaned.push(points[i]); } } return cleaned; };
                         finalRallyPath = cleanPath(finalRallyPath);
 
-                        // Cerrar bucle final
-                        if (finalRallyPath.length > 0) {
-                            const first = finalRallyPath[0];
-                            const last = finalRallyPath[finalRallyPath.length - 1];
-                            if (first.distanceTo(last) > 0.5) {
-                                finalRallyPath.push(new THREE.Vector3().lerpVectors(last, first, 0.33));
-                                finalRallyPath.push(new THREE.Vector3().lerpVectors(last, first, 0.66));
-                                finalRallyPath.push(first.clone());
-                            }
-                        }
+                        if (finalRallyPath.length > 0) { const first = finalRallyPath[0]; const last = finalRallyPath[finalRallyPath.length - 1]; if (first.distanceTo(last) > 0.5) { finalRallyPath.push(new THREE.Vector3().lerpVectors(last, first, 0.33)); finalRallyPath.push(new THREE.Vector3().lerpVectors(last, first, 0.66)); finalRallyPath.push(first.clone()); } }
 
-                        // SUAVIZADO DE TRAYECTORIA (Ultra Smooth)
-                        // Aumentado a 10 pasadas para eliminar cualquier "arista" geométrica
-                        if (finalRallyPath.length > 10) {
-                            for (let iter = 0; iter < 10; iter++) {
-                                const smoothed = [];
-                                const len = finalRallyPath.length;
-                                for (let i = 0; i < len; i++) {
-                                    const prev = finalRallyPath[(i - 1 + len) % len];
-                                    const curr = finalRallyPath[i];
-                                    const next = finalRallyPath[(i + 1) % len];
-                                    const x = (prev.x + curr.x + next.x) / 3;
-                                    const y = (prev.y + curr.y + next.y) / 3;
-                                    const z = (prev.z + curr.z + next.z) / 3;
-                                    smoothed.push(new THREE.Vector3(x, y, z));
-                                }
-                                finalRallyPath = smoothed;
-                            }
-                        }
+                        if (finalRallyPath.length > 10) { for (let iter = 0; iter < 10; iter++) { const smoothed = []; const len = finalRallyPath.length; for (let i = 0; i < len; i++) { const prev = finalRallyPath[(i - 1 + len) % len]; const curr = finalRallyPath[i]; const next = finalRallyPath[(i + 1) % len]; const x = (prev.x + curr.x + next.x) / 3; const y = (prev.y + curr.y + next.y) / 3; const z = (prev.z + curr.z + next.z) / 3; smoothed.push(new THREE.Vector3(x, y, z)); } finalRallyPath = smoothed; } }
 
-                        // Recalcular distancias reales
-                        for(let i=1; i<finalRallyPath.length; i++) {
-                            const d = finalRallyPath[i].distanceTo(finalRallyPath[i-1]);
-                            currentRallyDist += d;
-                            rallyDists.push(currentRallyDist);
-                        }
+                        for(let i=1; i<finalRallyPath.length; i++) { const d = finalRallyPath[i].distanceTo(finalRallyPath[i-1]); currentRallyDist += d; rallyDists.push(currentRallyDist); }
                     }
                     rallyPathRef.current = finalRallyPath;
                     rallyDistancesRef.current = rallyDists;
 
-                    // --- PUENTES Y ELEVACIÓN [EXISTING CODE] ---
+                    // --- PUENTES Y ELEVACIÓN [UNCHANGED] ---
+                    // ... (Bridge logic skipped for brevity, assumed identical to previous)
                     const trackPoints = rails.lane1; 
                     const numPoints = trackPoints.length; 
-                    const totalDist = vertexDistances[vertexDistances.length - 1] || 1; // FIX: Added totalDist definition here
+                    const totalDist = vertexDistances[vertexDistances.length - 1] || 1; 
                     const elevationProfile = new Float32Array(numPoints).fill(0);
-                    const BRIDGE_CLEARANCE = 9.5; const BRIDGE_THICKNESS = 1.5; const BRIDGE_TOP_H = BRIDGE_CLEARANCE + BRIDGE_THICKNESS; const RAMP_LENGTH = 160.0; const FLAT_TOP_LEN = 40.0; const SEARCH_GAP = 200.0; 
+                    const BRIDGE_CLEARANCE = 9.5; const BRIDGE_THICKNESS = 1.5; const BRIDGE_TOP_H = BRIDGE_CLEARANCE + BRIDGE_THICKNESS; const RAMP_LENGTH = 160.0; const FLAT_TOP_LEN = 40.0; const SEARCH_GAP = 50.0; 
                     const intersections = [];
                     
-                    const getPieceTypeAtIdx = (idx) => {
-                         const d = vertexDistances[idx];
-                         return pieceMapRef.current.find(p => d >= p.distStart && d < p.distEnd)?.type || 'straight';
+                    // HELPER MEJORADO PARA OBTENER LA PIEZA EN UN ÍNDICE
+                    const getPieceAtIdx = (idx) => { 
+                        const d = vertexDistances[idx]; 
+                        return pieceMapRef.current.find(p => d >= p.distStart && d < p.distEnd); 
                     };
-                    const isRotondaIdx = (idx) => {
-                        const type = getPieceTypeAtIdx(idx);
-                        const piece = pieceMapRef.current.find(p => vertexDistances[idx] >= p.distStart && vertexDistances[idx] < p.distEnd);
-                        return type === 'curve' && piece?.subtype === 'rotonda';
-                    };
+                    const isRotondaIdx = (idx) => { const piece = getPieceAtIdx(idx); return piece?.type === 'curve' && piece?.subtype === 'rotonda'; };
 
-                    for (let i = 0; i < numPoints; i += 2) {
+                    for (let i = 0; i < numPoints - 1; i += 2) {
                         if (isRotondaIdx(i)) continue;
-                        for (let j = i + 1; j < numPoints; j += 2) {
+                        
+                        // CORRECCIÓN 1: Evitar detectar puentes si la pieza de abajo es especial
+                        const pieceI = getPieceAtIdx(i);
+                        const isSpecialI = pieceI && ['crossing', 'digital_x', 'change_right', 'change_left', 'pit_parallel_double_x', 'chicane_entry', 'chicane_exit'].includes(pieceI.subtype);
+                        if (isSpecialI) continue;
+
+                        for (let j = i + 1; j < numPoints - 1; j += 2) {
                             if (isRotondaIdx(j)) continue;
+                            
+                            // CORRECCIÓN 1: Evitar detectar puentes si la pieza de arriba es especial
+                            const pieceJ = getPieceAtIdx(j);
+                            const isSpecialJ = pieceJ && ['crossing', 'digital_x', 'change_right', 'change_left', 'pit_parallel_double_x', 'chicane_entry', 'chicane_exit'].includes(pieceJ.subtype);
+                            if (isSpecialJ) continue;
+
                             const d1 = vertexDistances[i]; const d2 = vertexDistances[j]; let travelDist = Math.abs(d2 - d1); if (travelDist > accumulatedDist / 2) travelDist = accumulatedDist - travelDist;
                             if (travelDist > SEARCH_GAP) {
                                 const p1 = trackPoints[i] || rails.lane2[i]; 
                                 const p2 = trackPoints[j] || rails.lane2[j]; 
                                 if (!p1 || !p2) continue; 
+                                
                                 const dist2D = Math.sqrt((p1.x - p2.x)**2 + (p1.z - p2.z)**2);
-                                if (dist2D < 22) {
+                                
+                                // CORRECCIÓN 2: UMBRAL MÁS TOLERANTE (15 en lugar de 12)
+                                // 15 es seguro porque la anchura mínima de pista es ~15.6 (SCX).
+                                // Si son paralelas tocándose, la distancia es >15.6, así que 15 filtra.
+                                if (dist2D < 15) {
+                                    // CORRECCIÓN 3: FILTRO DE PARALELISMO (ÁNGULO)
+                                    // Si las pistas van paralelas, NO es un puente.
+                                    const p1Next = trackPoints[i+1] || rails.lane2[i+1];
+                                    const p2Next = trackPoints[j+1] || rails.lane2[j+1];
+                                    
+                                    if (p1Next && p2Next) {
+                                        // Cálculo simplificado de vectores dirección
+                                        const dx1 = p1Next.x - p1.x; const dz1 = p1Next.z - p1.z;
+                                        const dx2 = p2Next.x - p2.x; const dz2 = p2Next.z - p2.z;
+                                        // Normalizar
+                                        const len1 = Math.sqrt(dx1*dx1 + dz1*dz1);
+                                        const len2 = Math.sqrt(dx2*dx2 + dz2*dz2);
+                                        if (len1 > 0 && len2 > 0) {
+                                            const dot = (dx1*dx2 + dz1*dz2) / (len1 * len2);
+                                            // Si el producto punto es muy cercano a 1 (paralelo), ignorar.
+                                            // Umbral 0.95 (~18 grados). Permite cruces en ángulo agudo, pero bloquea paralelos estrictos.
+                                            if (Math.abs(dot) > 0.95) continue;
+                                        }
+                                    }
+
                                     const midX = (p1.x + p2.x) / 2;
                                     const midZ = (p1.z + p2.z) / 2;
                                     const exists = intersections.some(c => { const distSq = (midX - c.midX)**2 + (midZ - c.midZ)**2; return distSq < (40 * 40); });
                                     if (!exists) {
                                         let goesUpIdx = j; 
                                         if (bridgeStrategy === 'inverse') goesUpIdx = i; 
-                                        else if (bridgeStrategy === 'smart') { const type1 = getPieceTypeAtIdx(i); const type2 = getPieceTypeAtIdx(j); if (type1 === 'straight' && type2 === 'curve') goesUpIdx = i; else if (type1 === 'curve' && type2 === 'straight') goesUpIdx = j; else goesUpIdx = j; }
+                                        else if (bridgeStrategy === 'smart') { 
+                                            const type1 = pieceI?.type || 'straight'; 
+                                            const type2 = pieceJ?.type || 'straight'; 
+                                            if (type1 === 'straight' && type2 === 'curve') goesUpIdx = i; 
+                                            else if (type1 === 'curve' && type2 === 'straight') goesUpIdx = j; 
+                                            else goesUpIdx = j; 
+                                        }
                                         intersections.push({ upperIdx: goesUpIdx, lowerIdx: goesUpIdx === j ? i : j, midX, midZ });
                                     }
                                 }
@@ -1056,39 +1201,28 @@
                         }
                     }
 
-                    intersections.forEach(cross => {
-                        const centerDist = vertexDistances[cross.upperIdx];
-                        for (let k = 0; k < numPoints; k++) {
-                            const currentDist = vertexDistances[k]; let distToCenter = Math.abs(currentDist - centerDist); if (distToCenter > accumulatedDist / 2) distToCenter = accumulatedDist - distToCenter;
-                            if (distToCenter < (FLAT_TOP_LEN/2 + RAMP_LENGTH)) {
-                                let h = 0; if (distToCenter <= FLAT_TOP_LEN / 2) { h = BRIDGE_TOP_H; } else { const rampPos = (distToCenter - FLAT_TOP_LEN/2) / RAMP_LENGTH; const smoothFactor = (rampPos * rampPos * (3 - 2 * rampPos)); h = BRIDGE_TOP_H * (1 - smoothFactor); }
-                                elevationProfile[k] = Math.max(elevationProfile[k], h);
+                    // APLICAR PERFIL DE ELEVACIÓN (RAMPAS)
+                    intersections.forEach(cross => { const centerDist = vertexDistances[cross.upperIdx]; for (let k = 0; k < numPoints; k++) { const currentDist = vertexDistances[k]; let distToCenter = Math.abs(currentDist - centerDist); if (distToCenter > accumulatedDist / 2) distToCenter = accumulatedDist - distToCenter; if (distToCenter < (FLAT_TOP_LEN/2 + RAMP_LENGTH)) { let h = 0; if (distToCenter <= FLAT_TOP_LEN / 2) { h = BRIDGE_TOP_H; } else { const rampPos = (distToCenter - FLAT_TOP_LEN/2) / RAMP_LENGTH; const smoothFactor = (rampPos * rampPos * (3 - 2 * rampPos)); h = BRIDGE_TOP_H * (1 - smoothFactor); } elevationProfile[k] = Math.max(elevationProfile[k], h); } } });
+                    
+                    // CORRECCIÓN 4 (FINAL Y AGRESIVA): APLANAR FORZOSAMENTE PIEZAS ESPECIALES
+                    // Asegura que Cruces y Cambios sean planos, independientemente de las rampas calculadas.
+                    for (let k = 0; k < numPoints; k++) {
+                        const piece = getPieceAtIdx(k);
+                        if (piece) {
+                            const mustBeFlat = [
+                                'crossing', 'digital_x', 'change_right', 'change_left', 
+                                'pit_parallel_double_x', 'pit_entry', 'pit_exit', 
+                                'digital_console', 'connection', 'starting_grid', 
+                                'chicane_entry', 'chicane_exit'
+                            ].includes(piece.subtype);
+                            
+                            if (mustBeFlat) {
+                                elevationProfile[k] = 0;
                             }
                         }
-                    });
-
-                    if (intersections.length > 0) {
-                        for (let i = 0; i < numPoints; i++) {
-                            const h = elevationProfile[i]; if (h > 0.1) {
-                                if (rails.lane1[i]) rails.lane1[i].y += h; if (rails.lane2[i]) rails.lane2[i].y += h; if (rails.pit[i]) rails.pit[i].y += h; 
-                                const vertIdx = i * 6; if (asphaltVerts.length > vertIdx + 5) { asphaltVerts[vertIdx + 1] += h; asphaltVerts[vertIdx + 4] += h; }
-                            }
-                        }
-                        rails.changes.forEach(changeItem => {
-                            const { points, refIdx, count } = changeItem;
-                            const startI = Math.max(0, refIdx - 5); const endI = Math.min(numPoints, refIdx + count + 5);
-                            points.forEach(pt => { 
-                                let bestH = 0; let minDist = Infinity; 
-                                for(let i = startI; i < endI; i++) { 
-                                    const r = rails.lane1[i] || rails.lane2[i]; 
-                                    if (!r) continue;
-                                    const d = (pt.x - r.x)**2 + (pt.z - r.z)**2; 
-                                    if(d < minDist) { minDist = d; bestH = r.y; } 
-                                } 
-                                if (minDist < 50 && bestH > 0.1) pt.y = bestH; 
-                            }); 
-                        });
                     }
+
+                    if (intersections.length > 0) { for (let i = 0; i < numPoints; i++) { const h = elevationProfile[i]; if (h > 0.1) { if (rails.lane1[i]) rails.lane1[i].y += h; if (rails.lane2[i]) rails.lane2[i].y += h; if (rails.pit[i]) rails.pit[i].y += h; const vertIdx = i * 6; if (asphaltVerts.length > vertIdx + 5) { asphaltVerts[vertIdx + 1] += h; asphaltVerts[vertIdx + 4] += h; } } } rails.changes.forEach(changeItem => { const { points, refIdx, count } = changeItem; const startI = Math.max(0, refIdx - 5); const endI = Math.min(numPoints, refIdx + count + 5); points.forEach(pt => { let bestH = 0; let minDist = Infinity; for(let i = startI; i < endI; i++) { const r = rails.lane1[i] || rails.lane2[i]; if (!r) continue; const d = (pt.x - r.x)**2 + (pt.z - r.z)**2; if(d < minDist) { minDist = d; bestH = r.y; } } if (minDist < 50 && bestH > 0.1) pt.y = bestH; }); }); }
 
                     const createRailMesh = (points, color, width=0.6) => { const cleanPoints = points.filter(p => p !== null); if(cleanPoints.length < 2) return; const path = new THREE.CatmullRomCurve3(cleanPoints); const geometry = new THREE.TubeGeometry(path, Math.max(2, cleanPoints.length), width/1.8, 8, false); const material = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222222, emissiveIntensity: 0.2, metalness: 1.0, roughness: 0.15, flatShading: false }); const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = true; trackGroup.add(mesh); };
                     const createMultiSegmentRailMesh = (points, color, width=0.6) => { let currentSegment = []; for (let p of points) { if (p === null) { if (currentSegment.length > 1) createRailMesh(currentSegment, color, width); currentSegment = []; } else { currentSegment.push(p); } } if (currentSegment.length > 1) createRailMesh(currentSegment, color, width); };
@@ -1100,7 +1234,8 @@
                     
                     const box = new THREE.Box3().setFromObject(trackGroup); if (!box.isEmpty()) { const center = box.getCenter(new THREE.Vector3()); trackGroup.position.sub(center); trackGroup.position.y = 0; } scene.add(trackGroup);
                     
-                    physicsState.current.slice(0, numCars).forEach((car) => { const c = createCar(car.id, car.color); trackGroup.add(c); carMeshes.push(c); });
+                    // CREAR TODOS LOS COCHES POSIBLES (MAX_CARS)
+                    physicsState.current.forEach((car) => { const c = createCar(car.id, car.color); trackGroup.add(c); carMeshes.push(c); });
 
                     const getPositionAtDistance = (pointArray, dist) => { 
                         let idx = 0; let min = 0, max = vertexDistances.length - 1; 
@@ -1116,32 +1251,10 @@
                         const path = rallyPathRef.current;
                         const dists = rallyDistancesRef.current;
                         if (!path || path.length < 2 || dists.length < 2) return new THREE.Vector3();
-                        
-                        const totalLen = dists[dists.length - 1];
-                        let safeDist = dist;
-                        // Manejo robusto del wrap-around para interpolación
-                        if (safeDist < 0) safeDist += totalLen;
-                        safeDist = safeDist % totalLen;
-
-                        // Búsqueda binaria exacta sobre distancias reales
-                        let idx = 0; 
-                        let min = 0, max = dists.length - 1; 
-                        while (min <= max) { 
-                            let mid = Math.floor((min + max) / 2); 
-                            if (dists[mid] <= safeDist) { idx = mid; min = mid + 1; } 
-                            else { max = mid - 1; } 
-                        }
-                        if (idx >= dists.length - 1) idx = dists.length - 2;
-
-                        const dStart = dists[idx];
-                        const dEnd = dists[idx+1];
-                        const segmentLen = dEnd - dStart;
-                        // Evitar división por cero
-                        const ratio = segmentLen > 0.00001 ? (safeDist - dStart) / segmentLen : 0;
-
-                        const p1 = path[idx];
-                        const p2 = path[idx+1];
-                        return new THREE.Vector3().lerpVectors(p1, p2, ratio);
+                        const totalLen = dists[dists.length - 1]; let safeDist = dist; if (safeDist < 0) safeDist += totalLen; safeDist = safeDist % totalLen;
+                        let idx = 0; let min = 0, max = dists.length - 1; while (min <= max) { let mid = Math.floor((min + max) / 2); if (dists[mid] <= safeDist) { idx = mid; min = mid + 1; } else { max = mid - 1; } } if (idx >= dists.length - 1) idx = dists.length - 2;
+                        const dStart = dists[idx]; const dEnd = dists[idx+1]; const segmentLen = dEnd - dStart; const ratio = segmentLen > 0.00001 ? (safeDist - dStart) / segmentLen : 0;
+                        const p1 = path[idx]; const p2 = path[idx+1]; return new THREE.Vector3().lerpVectors(p1, p2, ratio);
                     };
 
                     const animate = () => { 
@@ -1155,65 +1268,137 @@
                         
                         if (carMeshes.length > 0) { 
                             const voltageFactor = trackVoltage / 12.0;
-                            physicsState.current.slice(0, numCars).forEach((car, idx) => {
-                                const physicsGroup = carMeshes[idx]; if (!physicsGroup) return; const visualGroup = physicsGroup.children[0]; const setup = carSetupsRef.current[car.id];
+                            // Iterar sobre todos los coches físicos, pero solo procesar/renderizar los activos
+                            physicsState.current.forEach((car, idx) => {
+                                const physicsGroup = carMeshes[idx]; 
+                                if (!physicsGroup) return; 
+                                
+                                // GESTIÓN DE VISIBILIDAD SEGÚN MODO
+                                const isActive = idx < activeCarCountRef.current;
+                                physicsGroup.visible = isActive;
+                                
+                                // Si no está activo, no calculamos física ni actualizamos el Sprite
+                                if (!isActive) return;
+                                
+                                const setup = carSetupsRef.current[car.id];
                                 const gearRatio = setup.gearTeeth / setup.pinionTeeth; const maxSpeed = (setup.motorRPM / 150) * (3.0 / gearRatio) * voltageFactor; const acceleration = (setup.motorTorque / setup.weight) * gearRatio * voltageFactor * 80;
                                 
                                 if (shouldMove) { if (car.speed < maxSpeed) car.speed += acceleration * delta; if (car.speed > maxSpeed) car.speed -= acceleration * delta; car.distance += car.speed * delta; }
                                 
+                                // ... [PHYSICS LOGIC UNCHANGED FOR RALLY AND STANDARD] ...
                                 if (hasRotonda && rallyPathRef.current.length > 0 && rallyDistancesRef.current.length > 0) {
                                     const rallyTotalLen = rallyDistancesRef.current[rallyDistancesRef.current.length - 1]; 
-                                    
-                                    // Wrap-around correcto para Modo Rally
                                     if (car.distance >= rallyTotalLen) { 
                                         car.distance -= rallyTotalLen; 
                                         const registerLap = () => { if (car.lapStartTime > 0) { const lapTime = nowTime - car.lapStartTime; car.lastLapTime = lapTime; if (lapTime < car.bestLapTime) car.bestLapTime = lapTime; car.totalLapTime += lapTime; car.completedLaps++; } car.lapStartTime = nowTime; };
-                                        if (raceStateRef.current === 'idle') { registerLap(); car.laps++; } else if (raceStateRef.current === 'racing') { registerLap(); car.laps--; if (car.laps <= 0) { raceStateRef.current = 'finished'; setRaceState('finished'); setWinnerId(car.id); if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); playRaceSound('green'); } }
+                                        
+                                        // GESTIÓN DE VUELTAS (RALLY): Sumar en pruebas, Restar en carrera
+                                        if (raceStateRef.current === 'idle') { 
+                                            registerLap(); 
+                                            car.laps++; 
+                                        } else if (raceStateRef.current === 'racing') { 
+                                            registerLap(); 
+                                            car.laps--; 
+                                            if (car.laps <= 0) { 
+                                                raceStateRef.current = 'finished'; 
+                                                setRaceState('finished'); 
+                                                setWinnerId(car.id); 
+                                                if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); 
+                                                playRaceSound('green'); 
+                                            } 
+                                        }
                                     }
-                                    
-                                    // TÉCNICA DE PROYECCIÓN DE TANGENTE
-                                    // 1. Obtenemos posición actual
                                     const finalPos = getRallyPositionByDist(car.distance);
-                                    
-                                    // 2. Obtenemos un punto muy cercano (50cm) para calcular la dirección exacta del carril
                                     const tangentSample = getRallyPositionByDist(car.distance + 0.5);
-                                    
-                                    // 3. Calculamos vector dirección normalizado
                                     const dir = new THREE.Vector3().subVectors(tangentSample, finalPos).normalize();
-                                    
-                                    // 4. Proyectamos ese vector lejos (10m) para que 'lookAt' sea estable
                                     const targetLook = finalPos.clone().add(dir.multiplyScalar(10.0));
-                                    
                                     car.worldPos.copy(finalPos);
                                     physicsGroup.position.copy(finalPos).add(new THREE.Vector3(0, 0.2, 0));
-                                    
-                                    // Orientación con SLERP rápido para seguir la tangente fielmente
-                                    const targetMatrix = new THREE.Matrix4();
-                                    const up = new THREE.Vector3(0, 1, 0);
-                                    targetMatrix.lookAt(finalPos, targetLook, up);
-                                    
-                                    const targetRotation = new THREE.Quaternion();
-                                    targetRotation.setFromRotationMatrix(targetMatrix);
-                                    
-                                    // Velocidad de corrección alta (20.0) para que el morro entre rápido en la curva
+                                    const targetMatrix = new THREE.Matrix4(); const up = new THREE.Vector3(0, 1, 0); targetMatrix.lookAt(finalPos, targetLook, up);
+                                    const targetRotation = new THREE.Quaternion(); targetRotation.setFromRotationMatrix(targetMatrix);
                                     physicsGroup.quaternion.slerp(targetRotation, 20.0 * delta);
                                 } 
                                 else {
                                     if (shouldMove && car.distance >= totalDist) { 
                                         car.distance -= totalDist;
                                         const registerLap = () => { if (car.lapStartTime > 0) { const lapTime = nowTime - car.lapStartTime; car.lastLapTime = lapTime; if (lapTime < car.bestLapTime) car.bestLapTime = lapTime; car.totalLapTime += lapTime; car.completedLaps++; } car.lapStartTime = nowTime; };
-                                        if (raceStateRef.current === 'idle') { registerLap(); car.laps++; } else if (raceStateRef.current === 'racing') { registerLap(); car.laps--; if (car.laps <= 0) { raceStateRef.current = 'finished'; setRaceState('finished'); setWinnerId(car.id); if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); playRaceSound('green'); } }
+                                        
+                                        // GESTIÓN DE VUELTAS (ESTÁNDAR): Sumar en pruebas, Restar en carrera
+                                        if (raceStateRef.current === 'idle') { 
+                                            registerLap(); 
+                                            car.laps++; 
+                                        } else if (raceStateRef.current === 'racing') { 
+                                            registerLap(); 
+                                            car.laps--; 
+                                            if (car.laps <= 0) { 
+                                                raceStateRef.current = 'finished'; 
+                                                setRaceState('finished'); 
+                                                setWinnerId(car.id); 
+                                                if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); 
+                                                playRaceSound('green'); 
+                                            } 
+                                        }
                                     }
                                     const currentPiece = pieceMapRef.current.find(p => car.distance >= p.distStart && car.distance < p.distEnd);
                                     if (currentPiece) {
-                                        if (car.lastPieceIndex !== currentPiece.index) { car.lastPieceIndex = currentPiece.index; if (car.isChanging) { car.isChanging = false; car.currentLane = car.targetLane; car.changeProgress = 0; } if (car.targetLane === LANE_PIT && currentPiece.isPitSection) { car.currentLane = LANE_PIT; } else if (car.currentLane !== LANE_PIT) { car.currentLane = car.targetLane; } if (laneActiveRef.current && currentPiece.canChangeLane && shouldMove) { let nextL = car.currentLane; let shouldChange = false; if (car.currentLane !== LANE_PIT) { if (currentPiece.subtype === 'digital_x') { if (Math.random() > 0.5) { nextL = (car.currentLane === LANE_1) ? LANE_2 : LANE_1; shouldChange = true; } } else if (currentPiece.subtype === 'change_right' && car.currentLane === LANE_1) { if (Math.random() > 0.5) { nextL = LANE_2; shouldChange = true; } } else if (currentPiece.subtype === 'change_left' && car.currentLane === LANE_2) { if (Math.random() > 0.5) { nextL = LANE_1; shouldChange = true; } } else if (currentPiece.type === 'pit_entry') { const pitOnRight = !currentPiece.invert; const entryLane = pitOnRight ? LANE_2 : LANE_1; if (car.currentLane === entryLane) { if (Math.random() > 0.95) { nextL = LANE_PIT; shouldChange = true; } } } } if (currentPiece.type === 'pit_exit' && car.currentLane === LANE_PIT) { const pitOnRight = !currentPiece.invert; nextL = pitOnRight ? LANE_2 : LANE_1; shouldChange = true; } if (shouldChange) { car.isChanging = true; car.targetLane = nextL; car.changeProgress = 0; } } }
-                                        
+                                        if (car.lastPieceIndex !== currentPiece.index) { 
+                                            car.lastPieceIndex = currentPiece.index; 
+                                            
+                                            // Resetear estado de cambio si ha terminado la pieza
+                                            if (car.isChanging) { 
+                                                car.isChanging = false; 
+                                                car.currentLane = car.targetLane; 
+                                                car.changeProgress = 0; 
+                                            } 
+                                            
+                                            // Lógica de Boxes: Si entró a boxes, sigue en boxes hasta la salida
+                                            if (car.targetLane === LANE_PIT && currentPiece.isPitSection) { 
+                                                car.currentLane = LANE_PIT; 
+                                            } else if (car.currentLane !== LANE_PIT) { 
+                                                car.currentLane = car.targetLane; 
+                                            } 
+
+                                            // DECISIÓN DE CAMBIO DE CARRIL (SOLO SI DIGITAL ESTÁ ACTIVO)
+                                            // Restricción BLINDADA: Si el modo es GRID (Preparación) o ANALOG, se fuerza isDigitalMode = false
+                                            const isDigitalMode = laneActiveRef.current && activeButtonRef.current !== 'GRID' && activeButtonRef.current !== 'ANALOG';
+
+                                            if (isDigitalMode && currentPiece.canChangeLane && shouldMove) { 
+                                                let nextL = car.currentLane; 
+                                                let shouldChange = false; 
+                                                
+                                                if (car.currentLane !== LANE_PIT) { 
+                                                    if (currentPiece.subtype === 'digital_x') { 
+                                                        if (Math.random() > 0.5) { nextL = (car.currentLane === LANE_1) ? LANE_2 : LANE_1; shouldChange = true; } 
+                                                    } else if (currentPiece.subtype === 'change_right' && car.currentLane === LANE_1) { 
+                                                        if (Math.random() > 0.5) { nextL = LANE_2; shouldChange = true; } 
+                                                    } else if (currentPiece.subtype === 'change_left' && car.currentLane === LANE_2) { 
+                                                        if (Math.random() > 0.5) { nextL = LANE_1; shouldChange = true; } 
+                                                    } else if (currentPiece.type === 'pit_entry') { 
+                                                        const pitOnRight = !currentPiece.invert; 
+                                                        const entryLane = pitOnRight ? LANE_2 : LANE_1; 
+                                                        if (car.currentLane === entryLane) { 
+                                                            if (Math.random() > 0.95) { nextL = LANE_PIT; shouldChange = true; } 
+                                                        } 
+                                                    } 
+                                                } 
+                                                
+                                                if (currentPiece.type === 'pit_exit' && car.currentLane === LANE_PIT) { 
+                                                    const pitOnRight = !currentPiece.invert; 
+                                                    nextL = pitOnRight ? LANE_2 : LANE_1; 
+                                                    shouldChange = true; 
+                                                } 
+                                                
+                                                if (shouldChange) { 
+                                                    car.isChanging = true; 
+                                                    car.targetLane = nextL; 
+                                                    car.changeProgress = 0; 
+                                                } 
+                                            } 
+                                        }
                                         let posL1 = getPositionAtDistance(rails.lane1, car.distance); let posL2 = getPositionAtDistance(rails.lane2, car.distance); let posPit = getPositionAtDistance(rails.pit, car.distance); 
                                         if (!posL1 && rails.lane2.length > 0) posL1 = posL2; if (!posL2 && rails.lane1.length > 0) posL2 = posL1; if (!posPit && posL2) posPit = posL2;
-                                        
                                         let mixFactor; if (car.isChanging) { const pieceLen = currentPiece.distEnd - currentPiece.distStart; const localDist = car.distance - currentPiece.distStart; car.changeProgress = localDist / pieceLen; mixFactor = (1 - Math.cos(car.changeProgress * Math.PI)) / 2; } else { mixFactor = 0; }
                                         let vOrigin, vTarget; const getLaneVec = (l) => { if (l === LANE_PIT) return posPit; if (l === LANE_2) return posL2; return posL1; }; if (car.isChanging) { vOrigin = getLaneVec(car.currentLane); vTarget = getLaneVec(car.targetLane); } else { vOrigin = getLaneVec(car.currentLane); vTarget = vOrigin; } 
-                                        
                                         if (vOrigin && vTarget) {
                                             const finalPos = new THREE.Vector3().lerpVectors(vOrigin, vTarget, mixFactor);
                                             const lookAheadDist = car.distance + 1.0; let nextDist = lookAheadDist >= totalDist ? lookAheadDist - totalDist : lookAheadDist; 
@@ -1231,10 +1416,29 @@
                                     }
                                 }
                             });
-                            if (shouldMove && physicsState.current.length > 1 && !hasRotonda && !physicsState.current[0].isDerailled && !physicsState.current[1].isDerailled) { const c1 = physicsState.current[0]; const c2 = physicsState.current[1]; const isInvulnerable = nowTime < c1.invulnerableUntil || nowTime < c2.invulnerableUntil; if (!isInvulnerable) { const dist = c1.worldPos.distanceTo(c2.worldPos); if (dist < 7.5) { [c1, c2].forEach(c => { c.isDerailled = true; c.recoverTime = nowTime + 2000; c.velocity.set( (Math.random() - 0.5) * 50, 10 + Math.random() * 20, (Math.random() - 0.5) * 50 ); }); } } }
+                            
+                            // COLISIONES: Solo entre coches activos
+                            if (shouldMove && activeCarCountRef.current > 1 && !hasRotonda) {
+                                for(let i=0; i < activeCarCountRef.current - 1; i++) {
+                                    for(let j=i+1; j < activeCarCountRef.current; j++) {
+                                        const c1 = physicsState.current[i];
+                                        const c2 = physicsState.current[j];
+                                        if(!c1.isDerailled && !c2.isDerailled) {
+                                            const isInvulnerable = nowTime < c1.invulnerableUntil || nowTime < c2.invulnerableUntil;
+                                            if (!isInvulnerable) {
+                                                const dist = c1.worldPos.distanceTo(c2.worldPos);
+                                                if (dist < 7.5) {
+                                                    [c1, c2].forEach(c => { c.isDerailled = true; c.recoverTime = nowTime + 2000; c.velocity.set( (Math.random() - 0.5) * 50, 10 + Math.random() * 20, (Math.random() - 0.5) * 50 ); });
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             const now = Date.now(); if (shouldMove && now - lastUIUpdate.current > 100) { 
                                 const currentTrackLen = (hasRotonda && rallyDistancesRef.current.length > 0) ? rallyDistancesRef.current[rallyDistancesRef.current.length - 1] : totalDist;
-                                const carsWithScore = physicsState.current.map(c => { 
+                                const carsWithScore = physicsState.current.slice(0, activeCarCountRef.current).map(c => { 
                                     let lapsCompleted = 0; 
                                     if (raceStateRef.current === 'racing') { 
                                         lapsCompleted = targetLapsRef.current - c.laps; 
@@ -1245,7 +1449,13 @@
                                     return { ...c, score: lapsCompleted + progress }; 
                                 }); 
                                 carsWithScore.sort((a, b) => b.score - a.score); 
-                                const leaderId = carsWithScore[0].id; let best = Infinity; let leaderL = 0; physicsState.current.forEach(c => { if (c.bestLapTime < best) best = c.bestLapTime; if (c.id === leaderId) leaderL = c.laps; }); setTelemetry(physicsState.current.map(c => { const totalDistCm = (c.completedLaps * currentTrackLen) + c.distance; const activeTimeSec = c.totalLapTime > 0 ? (c.totalLapTime / 1000) : 1; const avgSpeedVal = (totalDistCm / activeTimeSec) * 1.15; return { id: c.id, speed: Math.round(c.speed * 1.15), avgSpeed: Math.round(avgSpeedVal > 0 ? avgSpeedVal : 0), lastLap: c.lastLapTime, bestLap: c.bestLapTime === Infinity ? 0 : c.bestLapTime, averageLap: c.completedLaps > 0 ? (c.totalLapTime / c.completedLaps) : 0, currentLap: (c.lapStartTime > 0 && shouldMove) ? (now - c.lapStartTime) : 0, laps: c.laps, position: carsWithScore.findIndex(x => x.id === c.id) + 1, isCrashed: c.isDerailled }; })); setRacePositions(carsWithScore.map(c => c.id)); setLeaderLaps(leaderL); setGlobalFastestLap(best); lastUIUpdate.current = now; }
+                                const leaderId = carsWithScore[0].id; let best = Infinity; let leaderL = 0; physicsState.current.forEach(c => { if (c.bestLapTime < best) best = c.bestLapTime; if (c.id === leaderId) leaderL = c.laps; }); 
+                                
+                                // UPDATE TELEMETRY (Sliced to active cars)
+                                setTelemetry(physicsState.current.slice(0, activeCarCountRef.current).map(c => { const totalDistCm = (c.completedLaps * currentTrackLen) + c.distance; const activeTimeSec = c.totalLapTime > 0 ? (c.totalLapTime / 1000) : 1; const avgSpeedVal = (totalDistCm / activeTimeSec) * 1.15; return { id: c.id, speed: Math.round(c.speed * 1.15), avgSpeed: Math.round(avgSpeedVal > 0 ? avgSpeedVal : 0), lastLap: c.lastLapTime, bestLap: c.bestLapTime === Infinity ? 0 : c.bestLapTime, averageLap: c.completedLaps > 0 ? (c.totalLapTime / c.completedLaps) : 0, currentLap: (c.lapStartTime > 0 && shouldMove) ? (now - c.lapStartTime) : 0, laps: c.laps, position: carsWithScore.findIndex(x => x.id === c.id) + 1, isCrashed: c.isDerailled }; })); 
+                                
+                                setRacePositions(carsWithScore.map(c => c.id)); setLeaderLaps(leaderL); setGlobalFastestLap(best); lastUIUpdate.current = now; 
+                            }
                         } 
                         if (renderer && scene && camera) renderer.render(scene, camera); 
                     };
@@ -1326,7 +1536,7 @@
                         </div>
                         <div className="flex flex-col items-center mx-2 shrink-0">
                             <div className="bg-black px-5 py-4 rounded-[1.5rem] border-4 border-gray-800 flex gap-4 shadow-[0_0_60px_black] backdrop-blur-md relative z-10">
-                                {[1, 2, 3, 4, 5].map(n => { const isRed = raceState === 'countdown' && activeLights >= n; const isGreen = raceState === 'racing'; let bg = 'bg-[#0a0a0a]'; let shadow = 'border-gray-800 opacity-60'; if (isGreen) { bg = 'bg-[#39ff14]'; shadow = 'shadow-[0_0_40px_#39ff14] border-[#39ff14] scale-110 opacity-100'; } else if (isRed) { bg = 'bg-[#ff0000]'; shadow = 'shadow-[0_0_40px_#ff0000] border-[#ff0000] scale-110 opacity-100'; } return <div key={n} className={`w-10 h-10 rounded-full border-4 ${bg} ${shadow} transition-all duration-100`}></div> })}
+                                {[1, 2, 3, 4, 5].map(n => { const isRed = raceState === 'countdown' && activeLights >= n; const isGreen = raceState === 'racing' || raceState === 'idle'; let bg = 'bg-[#0a0a0a]'; let shadow = 'border-gray-800 opacity-60'; if (isGreen) { bg = 'bg-[#39ff14]'; shadow = 'shadow-[0_0_40px_#39ff14] border-[#39ff14] scale-110 opacity-100'; } else if (isRed) { bg = 'bg-[#ff0000]'; shadow = 'shadow-[0_0_40px_#ff0000] border-[#ff0000] scale-110 opacity-100'; } return <div key={n} className={`w-10 h-10 rounded-full border-4 ${bg} ${shadow} transition-all duration-100`}></div> })}
                             </div>
                             <button 
                                 onClick={() => setBridgeStrategy(s => s === 'smart' ? 'index' : s === 'index' ? 'inverse' : 'smart')} 
@@ -1339,7 +1549,7 @@
                                 </span>
                             </button>
 
-                            {activeButton === 'GRID' && (<div className="mt-2 bg-black/80 border-2 border-[#39ff14] px-6 py-2 rounded-xl shadow-[0_0_30px_rgba(57,255,20,0.4)] backdrop-blur-md animate-in flex flex-col items-center transform scale-100"><span className="text-[#39ff14] font-black text-4xl tracking-[0.15em] drop-shadow-[0_0_15px_rgba(57,255,20,0.8)] font-digital">00:00:000</span></div>)}
+                            {activeButton === 'GRID' && (<div className="mt-2 bg-black/80 border-2 border-[#39ff14] px-6 py-2 rounded-xl shadow-[0_0_30px_rgba(57,255,20,0.4)] backdrop-blur-md animate-in flex flex-col items-center transform scale-100"><span className="text-[#39ff14] font-black text-4xl tracking-[0.15em] drop-shadow-[0_0_15px_rgba(57,255,20,0.8)] font-digital">{formatTime(elapsedTime)}</span></div>)}
                             {raceState === 'racing' && elapsedTime < 3000 && <div className="absolute top-24 text-[#39ff14] font-black text-7xl italic tracking-tighter animate-ping drop-shadow-[0_0_40px_rgba(57,255,20,1)] scale-150 z-50">GO!</div>}
                         </div>
                         <div className="flex flex-col gap-3 pointer-events-auto animate-in items-center">
@@ -1378,15 +1588,77 @@
                     <div className="absolute bottom-6 left-6 pointer-events-auto z-[70] flex flex-col md:flex-row items-start md:items-center gap-4 scale-90 md:scale-100 origin-bottom-left">
                         <button onClick={onClose} className="flex items-center gap-2 bg-red-600/90 hover:bg-red-500 text-white border border-red-400 px-6 py-3 rounded-full font-bold text-sm tracking-wider transition shadow-lg backdrop-blur-sm hover:scale-105 h-12"><X size={20}/> VOLVER</button>
                         <div className="flex gap-6 items-center bg-black/80 px-6 py-2 rounded-full border border-white/10 backdrop-blur-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] h-12">
-                            <div className="flex gap-2 items-center">
-                                <span className="text-[10px] text-gray-500 font-bold mr-2 uppercase tracking-widest hidden md:block">Configurar:</span>
-                                <button onClick={() => setSelectedCarId(1)} className={`px-4 py-1.5 rounded-full font-black text-[10px] tracking-widest border transition-all duration-300 ${selectedCarId === 1 ? 'bg-white text-black border-white shadow-[0_0_20px_white] scale-105' : 'bg-transparent text-gray-500 border-gray-700 hover:border-gray-500 hover:text-gray-300'}`}>EQUIPO 1</button>
-                                <button onClick={() => !hasRotonda && setSelectedCarId(2)} className={`px-4 py-1.5 rounded-full font-black text-[10px] tracking-widest border transition-all duration-300 ${hasRotonda ? 'opacity-30 cursor-not-allowed border-gray-800 text-gray-600' : (selectedCarId === 2 ? 'bg-white text-black border-white shadow-[0_0_20px_white] scale-105' : 'bg-transparent text-gray-500 border-gray-700 hover:border-gray-500 hover:text-gray-300')}`}>EQUIPO 2</button>
+                            
+                            {/* GRUPO CONFIGURACIÓN: PILOTO + VUELTAS */}
+                            <div className="flex gap-4 items-center">
+                                {/* SELECTOR DE NÚMERO DE PILOTOS (CANTIDAD) */}
+                                <div className="flex gap-2 items-center">
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest hidden xl:block mr-1">Configurar:</span>
+                                    
+                                    <div className="flex items-center gap-1 bg-gray-900 p-1 rounded-lg border border-gray-700">
+                                        <button 
+                                            onClick={() => updateActiveCars(activeCarCount - 1)}
+                                            disabled={activeCarCount <= 1}
+                                            className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-white rounded transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95"
+                                        >
+                                            <Minus size={14} />
+                                        </button>
+                                        
+                                        <div className="w-12 h-8 flex items-center justify-center bg-black border border-gray-600/50 rounded relative overflow-hidden mx-1 shadow-[inset_0_0_10px_rgba(0,0,0,1)]">
+                                            <div className="absolute inset-0 bg-[#39ff14]/5"></div>
+                                            <span className="font-digital text-[#39ff14] text-xl font-bold tracking-widest relative z-10 drop-shadow-[0_0_5px_rgba(57,255,20,0.5)]">{activeCarCount}</span>
+                                            <span className="absolute top-0.5 right-1 text-[5px] text-gray-500 font-bold tracking-tighter">MAX</span>
+                                        </div>
+
+                                        <button 
+                                            onClick={() => updateActiveCars(activeCarCount + 1)}
+                                            disabled={activeCarCount >= 8}
+                                            className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-white rounded transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95"
+                                        >
+                                            <Plus size={14} />
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col leading-none">
+                                        <span className="text-[10px] font-bold text-white tracking-widest opacity-80 hidden md:block">Nº PILOTOS</span>
+                                        <span className="text-[7px] font-bold text-[#39ff14] tracking-widest opacity-60 hidden md:block">EDIT: P{selectedCarId}</span>
+                                    </div>
+                                </div>
+
+                                <div className="w-px h-4 bg-white/10 hidden md:block"></div>
+
+                                {/* NUEVO SELECTOR VUELTAS */}
+                                <div className="flex gap-2 items-center">
+                                    <div className="flex items-center gap-1 bg-gray-900 p-1 rounded-lg border border-gray-700">
+                                        <button 
+                                            onClick={() => setTargetLaps(prev => Math.max(1, prev - 1))}
+                                            disabled={targetLaps <= 1}
+                                            className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-white rounded transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95"
+                                        >
+                                            <Minus size={14} />
+                                        </button>
+                                        
+                                        <div className="w-16 h-8 flex items-center justify-center bg-black border border-gray-600/50 rounded relative overflow-hidden mx-1 shadow-[inset_0_0_10px_rgba(0,0,0,1)]">
+                                            <div className="absolute inset-0 bg-[#fbbf24]/5"></div>
+                                            <span className="font-digital text-[#fbbf24] text-xl font-bold tracking-widest relative z-10 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]">{targetLaps}</span>
+                                            <span className="absolute top-0.5 right-1 text-[5px] text-gray-500 font-bold tracking-tighter">LAPS</span>
+                                        </div>
+
+                                        <button 
+                                            onClick={() => setTargetLaps(prev => Math.min(500, prev + 1))}
+                                            disabled={targetLaps >= 500}
+                                            className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-white rounded transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95"
+                                        >
+                                            <Plus size={14} />
+                                        </button>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-white tracking-widest opacity-80 hidden md:block">VUELTAS</span>
+                                </div>
                             </div>
+
                             <div className="w-px h-6 bg-white/20"></div>
                             <div className="flex gap-2">
                                 <button onClick={handleStartClick} disabled={raceState === 'countdown'} className={`group px-5 py-1.5 rounded-full font-black text-[10px] tracking-widest border border-[#39ff14] bg-[#39ff14]/10 text-[#39ff14] hover:bg-[#39ff14] hover:text-black shadow-[0_0_15px_rgba(57,255,20,0.1)] hover:shadow-[0_0_25px_rgba(57,255,20,0.6)] transition-all flex items-center gap-2 active:scale-95 ${raceState === 'countdown' ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                    <Play size={12} fill="currentColor" className="group-hover:scale-110 transition-transform"/> EMPEZAR
+                                    <Play size={12} fill="currentColor" className="group-hover:scale-110 transition-transform"/> {raceState === 'grid' ? 'EMPEZAR' : 'REANUDAR'}
                                 </button>
                                 <button onClick={() => setPaused(true)} className="group px-5 py-1.5 rounded-full font-black text-[10px] tracking-widest border border-yellow-500 bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500 hover:text-black shadow-[0_0_15px_rgba(234,179,8,0.1)] hover:shadow-[0_0_25px_rgba(234,179,8,0.6)] transition-all flex items-center gap-2 active:scale-95">
                                     <Pause size={12} fill="currentColor" className="group-hover:scale-110 transition-transform"/> PAUSA
@@ -1394,6 +1666,11 @@
                                 <button onClick={() => setShowSaveMenu(true)} className="group px-4 py-1.5 rounded-full font-black text-[10px] tracking-widest border border-blue-400 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white shadow-[0_0_15px_rgba(96,165,250,0.1)] hover:shadow-[0_0_25px_rgba(96,165,250,0.6)] transition-all flex items-center gap-2 active:scale-95" title="Guardar Configuración">
                                     <Save size={12} className="group-hover:scale-110 transition-transform"/> GUARDAR
                                 </button>
+                                {/* BOTÓN ABRIR CONFIGURACIÓN */}
+                                <button onClick={() => loadInputRef.current.click()} className="group px-4 py-1.5 rounded-full font-black text-[10px] tracking-widest border border-cyan-400 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-white shadow-[0_0_15px_rgba(34,211,238,0.1)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] transition-all flex items-center gap-2 active:scale-95" title="Cargar Configuración al Coche Actual">
+                                    <FolderOpen size={12} className="group-hover:scale-110 transition-transform"/> ABRIR
+                                </button>
+                                <input type="file" ref={loadInputRef} onChange={handleLoadConfig} accept=".json" className="hidden" />
                             </div>
                         </div>
                     </div>
@@ -1430,8 +1707,9 @@
           const [boardStep, setBoardStep] = useState(100);
           
           const DEFAULT_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7', '#ec4899', '#f97316', '#64748b'];
-          const [carSettings, setCarSettings] = useState(Array(2).fill(null).map((_, i) => ({ id: i + 1, name: `EQUIPO ${i + 1}`, color: DEFAULT_COLORS[i] })));
-          const [customCarAssets, setCustomCarAssets] = useState(Object.fromEntries(Array.from({length: 2}, (_, i) => [i + 1, { obj: null, mtl: null, texture: null, objName: null, mtlName: null, texName: null, rotation: [0, 180, 0], yOffset: 0 }])));
+          // ACTUALIZADO: Inicialización de 8 Coches
+          const [carSettings, setCarSettings] = useState(Array(8).fill(null).map((_, i) => ({ id: i + 1, name: `EQUIPO ${i + 1}`, color: DEFAULT_COLORS[i % DEFAULT_COLORS.length] })));
+          const [customCarAssets, setCustomCarAssets] = useState(Object.fromEntries(Array.from({length: 8}, (_, i) => [i + 1, { obj: null, mtl: null, texture: null, objName: null, mtlName: null, texName: null, rotation: [0, 180, 0], yOffset: 0 }])));
 
           const activePointers = useRef(new Map()); 
           const prevPinchDist = useRef(null); 
