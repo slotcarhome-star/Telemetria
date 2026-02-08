@@ -29,6 +29,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MTLLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <!-- NUEVAS LIBRERÍAS PARA EL VISOR HOMO (GLB + CONTROLES) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <style>
         /* ESTILOS GLOBALES */
@@ -95,6 +98,9 @@
     </script>
 
     <script type="text/babel" data-presets="react,env">
+        // :: MODO DE EDICIÓN RÁPIDA ACTIVADO :: 
+        // Las líneas 1-3, Telemetry3DViewer y definiciones masivas están ocultas.
+        // Solo se mostrarán los cambios.
         const { useState, useEffect, useRef } = React;
 
         class ErrorBoundary extends React.Component {
@@ -130,8 +136,8 @@
             const [tag, attrs, children = []] = iconData;
             return <svg {...attrs} width={size} height={size} className={className} {...props}>{Array.isArray(children) && children.map(([childTag, childAttrs], index) => React.createElement(childTag, { ...childAttrs, key: index }))}</svg>;
         };
-        const icons = ['Trash2','Image','Fuel','Move','Zap','Bluetooth','RotateCw','X','Repeat','PenTool','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Square','FolderOpen','Save','FileText','Activity','Play','Pause','Flag','GitCommit','ZoomIn','ZoomOut','Crosshair','Undo2','Redo2','Layers','Clock','Hash','Plus','Minus','AlertTriangle', 'Cloud', 'CloudUpload', 'CloudDownload', 'Settings', 'Battery', 'Scale', 'Maximize', 'Minimize'].reduce((acc, name) => { acc[name] = (p) => <IconWrapper name={name} {...p} />; return acc; }, {});
-        const { Trash2, Image: ImageIcon, Fuel, Move, Zap, Bluetooth, RotateCw, X, Repeat, PenTool, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Square, FolderOpen, Save, FileText, Activity, Play, Pause, Flag, GitCommit, ZoomIn, ZoomOut, Crosshair, Undo2, Redo2, Layers, Clock, Hash, Plus, Minus, AlertTriangle, Cloud, CloudUpload, CloudDownload, Settings, Battery, Scale, Maximize, Minimize } = icons;
+        const icons = ['Trash2','Image','Fuel','Move','Zap','Bluetooth','RotateCw','X','Repeat','PenTool','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Square','FolderOpen','Save','FileText','Activity','Play','Pause','Flag','GitCommit','ZoomIn','ZoomOut','Crosshair','Undo2','Redo2','Layers','Clock','Hash','Plus','Minus','AlertTriangle', 'Cloud', 'CloudUpload', 'CloudDownload', 'Settings', 'Battery', 'Scale', 'Maximize', 'Minimize', 'User'].reduce((acc, name) => { acc[name] = (p) => <IconWrapper name={name} {...p} />; return acc; }, {});
+        const { Trash2, Image: ImageIcon, Fuel, Move, Zap, Bluetooth, RotateCw, X, Repeat, PenTool, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Square, FolderOpen, Save, FileText, Activity, Play, Pause, Flag, GitCommit, ZoomIn, ZoomOut, Crosshair, Undo2, Redo2, Layers, Clock, Hash, Plus, Minus, AlertTriangle, Cloud, CloudUpload, CloudDownload, Settings, Battery, Scale, Maximize, Minimize, User } = icons;
 
         const MotorSVG = ({ type, color, label }) => {
             const safeLabel = (label || 'unk_motor').toString();
@@ -877,14 +883,50 @@
                     const physicsGroup = new THREE.Group(); const visualGroup = new THREE.Group(); physicsGroup.add(visualGroup);
                     const config = carAssetsRef.current[id] || {}; 
                     
-                    // ELIMINADO: Código de sprites de números flotantes (LIMPIEZA VISUAL)
+                    // LÓGICA DE CARGA DE MODELOS (GLB AÑADIDO Y CORREGIDO)
+                    if (config.glb && typeof THREE.GLTFLoader !== 'undefined') {
+                        const loader = new THREE.GLTFLoader();
+                        loader.load(config.glb, (gltf) => {
+                            const object = gltf.scene;
+                            // Normalizar Escala y Posición para la Pista
+                            const box = new THREE.Box3().setFromObject(object);
+                            const size = box.getSize(new THREE.Vector3());
+                            const center = box.getCenter(new THREE.Vector3());
+                            
+                            // Centrar pivote
+                            object.position.x -= center.x;
+                            object.position.y -= center.y;
+                            object.position.z -= center.z;
+                            
+                            // Escalar a tamaño coche Slot 1:32 (aprox 14.5 cm de largo)
+                            const maxDim = Math.max(size.x, size.z); 
+                            const targetSize = 14.5; 
+                            const scale = targetSize / (maxDim || 1);
+                            
+                            object.scale.set(scale, scale, scale);
+                            // AJUSTE ALTURA GLB: Base del modelo en 0 local
+                            object.position.y += (size.y * scale) / 2; 
+                            
+                            // Rotación correcta: Math.PI (180º) para corregir si va marcha atrás
+                            object.rotation.y = Math.PI; 
 
-                    const createGeometricCar = () => { const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.6 }); const bodyGeo = new THREE.BoxGeometry(4.5, 1.2, 9); const body = new THREE.Mesh(bodyGeo, bodyMat); body.position.y = 0.8; body.castShadow = true; visualGroup.add(body); const cockpitGeo = new THREE.BoxGeometry(3.5, 0.8, 4); const cockpitMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 }); const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat); cockpit.position.y = 1.8; visualGroup.add(cockpit); const wheelGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.8, 16); wheelGeo.rotateZ(Math.PI/2); const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 }); [[-2.5, 3], [2.5, 3], [-2.5, -3], [2.5, -3]].forEach(p => { const w = new THREE.Mesh(wheelGeo, wheelMat); w.position.set(p[0], 1.2, p[1]); visualGroup.add(w); }); };
-                    const hasCustomModel = config.obj && config.obj.length > 0;
-                    if (!hasCustomModel) { createGeometricCar(); } else if (typeof THREE.OBJLoader !== 'undefined') {
+                            object.traverse((child) => { 
+                                if (child.isMesh) { 
+                                    child.castShadow = true; 
+                                } 
+                            }); 
+                            visualGroup.add(object);
+                        });
+                    } else if (config.obj && config.obj.length > 0 && typeof THREE.OBJLoader !== 'undefined') {
+                        // ... existing OBJ loader logic ...
                         const loadModel = (materials = null) => { const objLoader = new THREE.OBJLoader(); if (materials) { objLoader.setMaterials(materials); } objLoader.load(config.obj, (object) => { const box = new THREE.Box3().setFromObject(object); const size = box.getSize(new THREE.Vector3()); const center = box.getCenter(new THREE.Vector3()); object.position.x += (object.position.x - center.x); object.position.y += (object.position.y - center.y); object.position.z += (object.position.z - center.z); const maxDim = Math.max(size.x, size.y, size.z); const targetSize = 10.0; const scaleFactor = targetSize / maxDim; object.scale.set(scaleFactor, scaleFactor, scaleFactor); object.position.y += (size.y * scaleFactor) / 2; object.traverse((child) => { if (child.isMesh) { child.castShadow = true; if (!materials && !config.texture) { child.material = new THREE.MeshStandardMaterial({ color: color, metalness: 0.5, roughness: 0.5 }); } if (config.texture) { const texLoader = new THREE.TextureLoader(); texLoader.load(config.texture, (tex) => { child.material.map = tex; child.material.needsUpdate = true; }); } } }); visualGroup.add(object); }, undefined, (err) => { console.warn("Error cargando OBJ, usando geométrico", err); createGeometricCar(); }); };
                         if (config.mtl && config.mtl.length > 0 && typeof THREE.MTLLoader !== 'undefined') { const mtlLoader = new THREE.MTLLoader(); mtlLoader.load(config.mtl, (materials) => { materials.preload(); loadModel(materials); }, undefined, () => loadModel(null)); } else { loadModel(null); }
-                    } return physicsGroup; 
+                    } else {
+                        // Coche Geométrico por Defecto
+                        const createGeometricCar = () => { const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.6 }); const bodyGeo = new THREE.BoxGeometry(4.5, 1.2, 9); const body = new THREE.Mesh(bodyGeo, bodyMat); body.position.y = 0.8; body.castShadow = true; visualGroup.add(body); const cockpitGeo = new THREE.BoxGeometry(3.5, 0.8, 4); const cockpitMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 }); const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat); cockpit.position.y = 1.8; visualGroup.add(cockpit); const wheelGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.8, 16); wheelGeo.rotateZ(Math.PI/2); const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 }); [[-2.5, 3], [2.5, 3], [-2.5, -3], [2.5, -3]].forEach(p => { const w = new THREE.Mesh(wheelGeo, wheelMat); w.position.set(p[0], 1.2, p[1]); visualGroup.add(w); }); };
+                        createGeometricCar();
+                    } 
+                    return physicsGroup; 
                 };
                 const createAsphaltTexture = (renderer, baseColor) => { const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d'); ctx.fillStyle = baseColor || '#080808'; ctx.fillRect(0, 0, 512, 512); for (let i = 0; i < 150000; i++) { const val = 15 + Math.floor(Math.random() * 30); ctx.fillStyle = `rgba(${val}, ${val}, ${val}, 0.2)`; ctx.fillRect(Math.random() * 512, Math.random() * 512, 1.5, 1.5); } for (let i = 0; i < 10000; i++) { const val = 40 + Math.floor(Math.random() * 40); ctx.fillStyle = `rgba(${val}, ${val}, ${val}, 0.15)`; ctx.fillRect(Math.random() * 512, Math.random() * 512, 1, 1); } const texture = new THREE.CanvasTexture(canvas); texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(1, 1); if (renderer) texture.anisotropy = renderer.capabilities.getMaxAnisotropy(); return texture; };
 
@@ -895,7 +937,20 @@
                     camera = new THREE.PerspectiveCamera(50, w / h, 1, 5000); 
                     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false }); renderer.setClearColor(bgColor, 1); renderer.setSize(w, h); renderer.setPixelRatio(window.devicePixelRatio); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
                     if (containerRef.current) { while(containerRef.current.firstChild) containerRef.current.removeChild(containerRef.current.firstChild); containerRef.current.appendChild(renderer.domElement); } else { return; }
-                    scene.add(new THREE.AmbientLight(0xffffff, 0.8)); const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); dirLight.position.set(100, 300, 50); dirLight.castShadow = true; dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; scene.add(dirLight); const gridHelper = new THREE.GridHelper(4000, 200, 0x888888, 0xcccccc); gridHelper.position.y = -0.5; scene.add(gridHelper);
+                    
+                    // ILUMINACIÓN AJUSTADA (MENOS INTENSA, MÁS NATURAL)
+                    scene.add(new THREE.AmbientLight(0xffffff, 0.6)); // Bajado de 2.5 a 0.6
+                    scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.6)); // Bajado de 1.5 a 0.6
+                    
+                    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); // Bajado de 3.0 a 1.2
+                    dirLight.position.set(100, 300, 50); dirLight.castShadow = true; dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048; scene.add(dirLight); 
+                    
+                    // Luz de relleno lateral suave
+                    const fillLight = new THREE.DirectionalLight(0xffffff, 0.5); // Bajado de 1.5 a 0.5
+                    fillLight.position.set(-100, 50, -50);
+                    scene.add(fillLight);
+
+                    const gridHelper = new THREE.GridHelper(4000, 200, 0x888888, 0xcccccc); gridHelper.position.y = -0.5; scene.add(gridHelper);
                     const asphaltTexture = createAsphaltTexture(renderer, brandData.trackColor);
                     const trackGroup = new THREE.Group(); const stdHalf = trackWidth / 2; const pitCenterDist = (laneSpacing / 2) + laneSpacing; const pitOuterEdge = pitCenterDist + (trackWidth / 2 + 1) / 2; 
                     const asphaltVerts = [], asphaltIndices = [], asphaltUVs = []; let aspVertCount = 0; 
@@ -1123,7 +1178,7 @@
                     const numPoints = trackPoints.length; 
                     const totalDist = vertexDistances[vertexDistances.length - 1] || 1; 
                     const elevationProfile = new Float32Array(numPoints).fill(0);
-                    const BRIDGE_CLEARANCE = 9.5; const BRIDGE_THICKNESS = 1.5; const BRIDGE_TOP_H = BRIDGE_CLEARANCE + BRIDGE_THICKNESS; const RAMP_LENGTH = 160.0; const FLAT_TOP_LEN = 40.0; const SEARCH_GAP = 50.0; 
+                    const BRIDGE_CLEARANCE = 9.5; const BRIDGE_THICKNESS = 1.5; const BRIDGE_TOP_H = BRIDGE_CLEARANCE + BRIDGE_THICKNESS; const RAMP_LENGTH = 160.0; const FLAT_TOP_LEN = 40.0; const SEARCH_GAP = 200.0; 
                     const intersections = [];
                     
                     // HELPER MEJORADO PARA OBTENER LA PIEZA EN UN ÍNDICE
@@ -1157,10 +1212,9 @@
                                 
                                 const dist2D = Math.sqrt((p1.x - p2.x)**2 + (p1.z - p2.z)**2);
                                 
-                                // CORRECCIÓN 2: UMBRAL MÁS TOLERANTE (15 en lugar de 12)
-                                // 15 es seguro porque la anchura mínima de pista es ~15.6 (SCX).
-                                // Si son paralelas tocándose, la distancia es >15.6, así que 15 filtra.
-                                if (dist2D < 15) {
+                                // CORRECCIÓN 2: UMBRAL MÁS ESTRICTO (12 en lugar de 22)
+                                // Esto evita que pistas paralelas adyacentes (distancia ~18cm) se detecten como puentes.
+                                if (dist2D < 12) {
                                     // CORRECCIÓN 3: FILTRO DE PARALELISMO (ÁNGULO)
                                     // Si las pistas van paralelas, NO es un puente.
                                     const p1Next = trackPoints[i+1] || rails.lane2[i+1];
@@ -1175,9 +1229,9 @@
                                         const len2 = Math.sqrt(dx2*dx2 + dz2*dz2);
                                         if (len1 > 0 && len2 > 0) {
                                             const dot = (dx1*dx2 + dz1*dz2) / (len1 * len2);
-                                            // Si el producto punto es muy cercano a 1 (paralelo), ignorar.
-                                            // Umbral 0.95 (~18 grados). Permite cruces en ángulo agudo, pero bloquea paralelos estrictos.
-                                            if (Math.abs(dot) > 0.95) continue;
+                                            // Si el producto punto es cercano a 1 (paralelo) o -1 (antiparalelo), ignorar.
+                                            // Umbral 0.85 equivale a unos 30 grados. Si se cruzan con menos ángulo, se considera paralelo/roce.
+                                            if (Math.abs(dot) > 0.85) continue;
                                         }
                                     }
 
@@ -1408,7 +1462,8 @@
                                             const getLaneVecFwd = (l) => { if (l===LANE_PIT) return fPosPit; if (l===LANE_2) return fPosL2; return fPosL1; }; let fOrigin, fTarget; if (car.isChanging) { fOrigin = getLaneVecFwd(car.currentLane); fTarget = getLaneVecFwd(car.targetLane); } else { fOrigin = getLaneVecFwd(car.currentLane); fTarget = fOrigin; } 
                                             if (fOrigin && fTarget) {
                                                 const finalLookAt = new THREE.Vector3().lerpVectors(fOrigin, fTarget, mixFactor); car.worldPos.copy(finalPos);
-                                                physicsGroup.position.copy(finalPos).add(new THREE.Vector3(0, 0.2, 0)); 
+                                                // AJUSTE FÍSICA: Bajamos -0.19 para compensar la altura del raíl (0.20) y tocar asfalto
+                                                physicsGroup.position.copy(finalPos).add(new THREE.Vector3(0, -0.19, 0)); 
                                                 const tangent = new THREE.Vector3().subVectors(finalLookAt, finalPos).normalize(); const up = new THREE.Vector3(0, 1, 0); let axisX = new THREE.Vector3().crossVectors(up, tangent).normalize(); if (axisX.lengthSq() < 0.001) axisX = new THREE.Vector3(1, 0, 0); const axisY = new THREE.Vector3().crossVectors(tangent, axisX).normalize(); const m = new THREE.Matrix4(); m.makeBasis(axisX, axisY, tangent); physicsGroup.quaternion.setFromRotationMatrix(m);
                                                 if (currentPiece.type === 'curve' && currentPiece.radius < 25) { const drift = (currentPiece.direction === 'left' ? 1 : -1) * 0.15; physicsGroup.rotateY(drift); } if (car.isChanging) { let dir = 0; if (car.targetLane === LANE_PIT) dir = 1; else if (car.currentLane === LANE_PIT) dir = -1; else dir = (car.targetLane === LANE_2) ? 1 : -1; physicsGroup.rotateY(dir * -0.15 * Math.sin(car.changeProgress * Math.PI)); }
                                             }
@@ -1583,79 +1638,39 @@
                         </>
                     )}
 
-                    {/* PANTALLA DE GANADOR ELIMINADA PARA MODO PREPARACIÓN */}
-
                     <div className="absolute bottom-6 left-6 pointer-events-auto z-[70] flex flex-col md:flex-row items-start md:items-center gap-4 scale-90 md:scale-100 origin-bottom-left">
                         <button onClick={onClose} className="flex items-center gap-2 bg-red-600/90 hover:bg-red-500 text-white border border-red-400 px-6 py-3 rounded-full font-bold text-sm tracking-wider transition shadow-lg backdrop-blur-sm hover:scale-105 h-12"><X size={20}/> VOLVER</button>
                         <div className="flex gap-6 items-center bg-black/80 px-6 py-2 rounded-full border border-white/10 backdrop-blur-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] h-12">
                             
-                            {/* GRUPO CONFIGURACIÓN: PILOTO + VUELTAS */}
-                            <div className="flex gap-4 items-center">
-                                {/* SELECTOR DE NÚMERO DE PILOTOS (CANTIDAD) */}
-                                <div className="flex gap-2 items-center">
-                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest hidden xl:block mr-1">Configurar:</span>
-                                    
-                                    <div className="flex items-center gap-1 bg-gray-900 p-1 rounded-lg border border-gray-700">
-                                        <button 
-                                            onClick={() => updateActiveCars(activeCarCount - 1)}
-                                            disabled={activeCarCount <= 1}
-                                            className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-white rounded transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95"
-                                        >
-                                            <Minus size={14} />
-                                        </button>
-                                        
-                                        <div className="w-12 h-8 flex items-center justify-center bg-black border border-gray-600/50 rounded relative overflow-hidden mx-1 shadow-[inset_0_0_10px_rgba(0,0,0,1)]">
-                                            <div className="absolute inset-0 bg-[#39ff14]/5"></div>
-                                            <span className="font-digital text-[#39ff14] text-xl font-bold tracking-widest relative z-10 drop-shadow-[0_0_5px_rgba(57,255,20,0.5)]">{activeCarCount}</span>
-                                            <span className="absolute top-0.5 right-1 text-[5px] text-gray-500 font-bold tracking-tighter">MAX</span>
-                                        </div>
-
-                                        <button 
-                                            onClick={() => updateActiveCars(activeCarCount + 1)}
-                                            disabled={activeCarCount >= 8}
-                                            className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-white rounded transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95"
-                                        >
-                                            <Plus size={14} />
-                                        </button>
+                            {/* CONTROLES PILOTOS Y VUELTAS (SIEMPRE VISIBLES) */}
+                            <div className="flex gap-4 items-center border-r border-white/20 pr-4 mr-1">
+                                {/* SELECTOR PILOTOS */}
+                                <div className="flex items-center gap-2">
+                                    <div className="flex flex-col items-end leading-none">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">PILOTOS</span>
+                                        <span className="text-[7px] text-[#39ff14] font-mono font-bold">ACTIVOS</span>
                                     </div>
-                                    <div className="flex flex-col leading-none">
-                                        <span className="text-[10px] font-bold text-white tracking-widest opacity-80 hidden md:block">Nº PILOTOS</span>
-                                        <span className="text-[7px] font-bold text-[#39ff14] tracking-widest opacity-60 hidden md:block">EDIT: P{selectedCarId}</span>
+                                    <div className="flex items-center gap-1 bg-gray-900 p-0.5 rounded border border-gray-700">
+                                        <button onClick={() => updateActiveCars(activeCarCount - 1)} disabled={activeCarCount <= 1} className="w-6 h-6 flex items-center justify-center hover:bg-gray-700 text-white rounded disabled:opacity-30"><Minus size={12}/></button>
+                                        <div className="w-8 text-center font-digital text-[#39ff14] text-lg font-bold">{activeCarCount}</div>
+                                        <button onClick={() => updateActiveCars(activeCarCount + 1)} disabled={activeCarCount >= 8} className="w-6 h-6 flex items-center justify-center hover:bg-gray-700 text-white rounded disabled:opacity-30"><Plus size={12}/></button>
                                     </div>
                                 </div>
 
-                                <div className="w-px h-4 bg-white/10 hidden md:block"></div>
-
-                                {/* NUEVO SELECTOR VUELTAS */}
-                                <div className="flex gap-2 items-center">
-                                    <div className="flex items-center gap-1 bg-gray-900 p-1 rounded-lg border border-gray-700">
-                                        <button 
-                                            onClick={() => setTargetLaps(prev => Math.max(1, prev - 1))}
-                                            disabled={targetLaps <= 1}
-                                            className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-white rounded transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95"
-                                        >
-                                            <Minus size={14} />
-                                        </button>
-                                        
-                                        <div className="w-16 h-8 flex items-center justify-center bg-black border border-gray-600/50 rounded relative overflow-hidden mx-1 shadow-[inset_0_0_10px_rgba(0,0,0,1)]">
-                                            <div className="absolute inset-0 bg-[#fbbf24]/5"></div>
-                                            <span className="font-digital text-[#fbbf24] text-xl font-bold tracking-widest relative z-10 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]">{targetLaps}</span>
-                                            <span className="absolute top-0.5 right-1 text-[5px] text-gray-500 font-bold tracking-tighter">LAPS</span>
-                                        </div>
-
-                                        <button 
-                                            onClick={() => setTargetLaps(prev => Math.min(500, prev + 1))}
-                                            disabled={targetLaps >= 500}
-                                            className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-white rounded transition disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95"
-                                        >
-                                            <Plus size={14} />
-                                        </button>
+                                {/* SELECTOR VUELTAS */}
+                                <div className="flex items-center gap-2">
+                                    <div className="flex flex-col items-end leading-none">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">VUELTAS</span>
+                                        <span className="text-[7px] text-[#fbbf24] font-mono font-bold">TARGET</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-white tracking-widest opacity-80 hidden md:block">VUELTAS</span>
+                                    <div className="flex items-center gap-1 bg-gray-900 p-0.5 rounded border border-gray-700">
+                                        <button onClick={() => setTargetLaps(prev => Math.max(1, prev - 1))} disabled={targetLaps <= 1} className="w-6 h-6 flex items-center justify-center hover:bg-gray-700 text-white rounded disabled:opacity-30"><Minus size={12}/></button>
+                                        <div className="w-10 text-center font-digital text-[#fbbf24] text-lg font-bold">{targetLaps}</div>
+                                        <button onClick={() => setTargetLaps(prev => Math.min(500, prev + 1))} disabled={targetLaps >= 500} className="w-6 h-6 flex items-center justify-center hover:bg-gray-700 text-white rounded disabled:opacity-30"><Plus size={12}/></button>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="w-px h-6 bg-white/20"></div>
                             <div className="flex gap-2">
                                 <button onClick={handleStartClick} disabled={raceState === 'countdown'} className={`group px-5 py-1.5 rounded-full font-black text-[10px] tracking-widest border border-[#39ff14] bg-[#39ff14]/10 text-[#39ff14] hover:bg-[#39ff14] hover:text-black shadow-[0_0_15px_rgba(57,255,20,0.1)] hover:shadow-[0_0_25px_rgba(57,255,20,0.6)] transition-all flex items-center gap-2 active:scale-95 ${raceState === 'countdown' ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                     <Play size={12} fill="currentColor" className="group-hover:scale-110 transition-transform"/> {raceState === 'grid' ? 'EMPEZAR' : 'REANUDAR'}
@@ -1666,7 +1681,6 @@
                                 <button onClick={() => setShowSaveMenu(true)} className="group px-4 py-1.5 rounded-full font-black text-[10px] tracking-widest border border-blue-400 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white shadow-[0_0_15px_rgba(96,165,250,0.1)] hover:shadow-[0_0_25px_rgba(96,165,250,0.6)] transition-all flex items-center gap-2 active:scale-95" title="Guardar Configuración">
                                     <Save size={12} className="group-hover:scale-110 transition-transform"/> GUARDAR
                                 </button>
-                                {/* BOTÓN ABRIR CONFIGURACIÓN */}
                                 <button onClick={() => loadInputRef.current.click()} className="group px-4 py-1.5 rounded-full font-black text-[10px] tracking-widest border border-cyan-400 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-white shadow-[0_0_15px_rgba(34,211,238,0.1)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] transition-all flex items-center gap-2 active:scale-95" title="Cargar Configuración al Coche Actual">
                                     <FolderOpen size={12} className="group-hover:scale-110 transition-transform"/> ABRIR
                                 </button>
@@ -1677,7 +1691,220 @@
                 </div> 
             );
         };
-        
+
+        // --- NUEVO: VISOR GLB (HOMO VIEWER) MEJORADO ---
+        const GLBViewer = ({ onClose, onLoad }) => {
+            const mountRef = useRef(null);
+            const inputRef = useRef(null); // Referencia imprescindible para el input de archivo
+            const [status, setStatus] = useState("ESPERANDO ARCHIVO...");
+            const rendererRef = useRef(null);
+            const sceneRef = useRef(null);
+            const cameraRef = useRef(null);
+            const controlsRef = useRef(null);
+
+            useEffect(() => {
+                if (!mountRef.current) return;
+                
+                // Verificación de seguridad de librerías
+                if (typeof THREE === 'undefined') {
+                    setStatus("ERROR: THREE.JS NO CARGADO");
+                    return;
+                }
+                if (typeof THREE.GLTFLoader === 'undefined') {
+                    setStatus("ERROR: GLTFLOADER NO CARGADO");
+                    return;
+                }
+
+                // 1. Inicializar con dimensiones seguras
+                const width = mountRef.current.clientWidth || 300;
+                const height = mountRef.current.clientHeight || 300;
+
+                // 2. Escena y Fondo Transparente
+                const scene = new THREE.Scene();
+                // scene.background = new THREE.Color(0x222222); // Opcional: Color de fondo solido
+                sceneRef.current = scene;
+
+                // 3. Cámara
+                const camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 1000);
+                camera.position.set(0, 2, 4);
+                cameraRef.current = camera;
+
+                // 4. Renderizador Robusto
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+                renderer.setSize(width, height);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.outputEncoding = THREE.sRGBEncoding;
+                mountRef.current.appendChild(renderer.domElement);
+                rendererRef.current = renderer;
+
+                // 5. Iluminación de Estudio (Para evitar modelos negros)
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+                scene.add(hemiLight);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+                dirLight.position.set(2, 5, 3);
+                dirLight.castShadow = true;
+                scene.add(dirLight);
+
+                // 6. Ayudas Visuales
+                const grid = new THREE.GridHelper(10, 10, 0x39ff14, 0x333333);
+                scene.add(grid);
+                const axes = new THREE.AxesHelper(1);
+                scene.add(axes);
+
+                // 7. Controles
+                if (typeof THREE.OrbitControls !== 'undefined') {
+                    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+                    controls.enableDamping = true;
+                    controls.autoRotate = true; // Rotar para ver que funciona
+                    controls.target.set(0, 0.5, 0);
+                    controlsRef.current = controls;
+                }
+
+                // 8. Observer para redimensionado automático con corrección de bucle
+                const resizeObserver = new ResizeObserver(entries => {
+                    window.requestAnimationFrame(() => {
+                        for (let entry of entries) {
+                            const { width, height } = entry.contentRect;
+                            if (width && height && renderer && camera) {
+                                camera.aspect = width / height;
+                                camera.updateProjectionMatrix();
+                                renderer.setSize(width, height);
+                            }
+                        }
+                    });
+                });
+                resizeObserver.observe(mountRef.current);
+
+                // 9. Bucle de Animación
+                let frameId;
+                const animate = () => {
+                    frameId = requestAnimationFrame(animate);
+                    if (controlsRef.current) controlsRef.current.update();
+                    renderer.render(scene, camera);
+                };
+                animate();
+
+                return () => {
+                    cancelAnimationFrame(frameId);
+                    resizeObserver.disconnect();
+                    if (renderer) {
+                        renderer.dispose();
+                        mountRef.current?.removeChild(renderer.domElement);
+                    }
+                };
+            }, []);
+
+            const handleFileChange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                setStatus("CARGANDO...");
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const loader = new THREE.GLTFLoader();
+                        loader.parse(event.target.result, '', (gltf) => {
+                            const scene = sceneRef.current;
+                            if (!scene) return;
+
+                            // Limpiar solo modelos anteriores (mantener luces y helpers)
+                            scene.children = scene.children.filter(obj => obj.isLight || obj.isGridHelper || obj.isAxesHelper);
+                            
+                            const model = gltf.scene;
+                            
+                            // Normalizar materiales para asegurar visibilidad
+                            model.traverse(child => {
+                                if (child.isMesh) {
+                                    child.castShadow = true;
+                                    child.receiveShadow = true;
+                                    if (child.material) {
+                                        child.material.side = THREE.DoubleSide; // Ver por dentro y fuera
+                                        child.material.needsUpdate = true;
+                                    }
+                                }
+                            });
+
+                            // Centrar y Escalar Automáticamente
+                            const box = new THREE.Box3().setFromObject(model);
+                            const size = box.getSize(new THREE.Vector3());
+                            const center = box.getCenter(new THREE.Vector3());
+
+                            // Centrar en (0,0,0) interno
+                            model.position.x += (model.position.x - center.x);
+                            model.position.y += (model.position.y - center.y);
+                            model.position.z += (model.position.z - center.z);
+
+                            // Escalar para que quepa en un cubo de 2x2x2
+                            const maxDim = Math.max(size.x, size.y, size.z);
+                            const scale = maxDim > 0 ? 2.5 / maxDim : 1;
+                            model.scale.set(scale, scale, scale);
+                            
+                            // Elevar sobre la rejilla
+                            model.position.y += (size.y * scale) / 2;
+
+                            scene.add(model);
+                            setStatus(`VISUALIZANDO: ${file.name.toUpperCase()}`);
+                            
+                            // Callback para asignar al Piloto 1 automáticamente
+                            if (onLoad) onLoad(file);
+
+                        }, (err) => {
+                            console.error(err);
+                            setStatus("ERROR AL PARSEAR GLB");
+                        });
+                    } catch (err) {
+                        console.error(err);
+                        setStatus("ERROR DE LECTURA");
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+                
+                // CRÍTICO: Limpiar el valor del input
+                e.target.value = '';
+            };
+
+            const triggerFileSelect = () => {
+                if (inputRef.current) inputRef.current.click();
+            };
+
+            return (
+                // CORRECCIÓN: Eliminado 'absolute bottom-28 left-0' para que respete al contenedor padre
+                <div className="w-80 h-80 bg-[#0f172a] border-2 border-[#39ff14] rounded-xl shadow-[0_0_40px_rgba(57,255,20,0.2)] flex flex-col overflow-hidden animate-in z-50 pointer-events-auto relative">
+                    <div className="bg-[#39ff14]/10 p-2 flex justify-between items-center border-b border-[#39ff14]/30">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-[#39ff14] rounded-full animate-pulse"></span>
+                            <h3 className="text-[10px] font-black text-white tracking-[0.2em]">VISOR HOMO</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={triggerFileSelect}
+                                className="flex items-center gap-1 bg-[#39ff14]/20 hover:bg-[#39ff14] text-[#39ff14] hover:text-black px-3 py-1 rounded text-[9px] font-bold transition border border-[#39ff14]/50 shadow-[0_0_10px_rgba(57,255,20,0.1)]"
+                                title="Abrir archivo GLB/GLTF"
+                            >
+                                <FolderOpen size={10} /> ABRIR
+                            </button>
+                            <button onClick={onClose} className="text-[#39ff14] hover:text-white transition"><X size={14} /></button>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 relative bg-black/50" ref={mountRef}>
+                        <div className="absolute top-2 left-2 right-2 text-[8px] font-mono text-[#39ff14] bg-black/80 px-2 py-1 rounded pointer-events-none select-none border border-[#39ff14]/20 text-center">
+                            {status}
+                        </div>
+                    </div>
+
+                    <input 
+                        ref={inputRef}
+                        type="file" 
+                        accept=".glb,.gltf" 
+                        onChange={handleFileChange} 
+                        className="hidden" 
+                    />
+                </div>
+            );
+        };
+
         function SlotDesigner() {
           const canvasRef = useRef(null); 
           const [activeBrand, setActiveBrand] = useState('NINCO'); 
@@ -1687,6 +1914,7 @@
           const pieces = history[historyStep]; 
           
           const [showTelemetry, setShowTelemetry] = useState(false); 
+          const [showHomoViewer, setShowHomoViewer] = useState(false); // NUEVO ESTADO PARA EL VISOR HOMO
           const [isFullScreen, setIsFullScreen] = useState(false); 
           
           const [view, setView] = useState({ x: window.innerWidth/2, y: window.innerHeight/2, scale: 5.0 }); 
@@ -1716,6 +1944,19 @@
           const piecePositions = useRef([]); 
           const imageCache = useRef(new Map()); 
           
+          // FUNCIÓN PARA ASIGNAR GLB AL PILOTO 1
+          const handleModelAssign = (file) => {
+              if (file) {
+                  const url = URL.createObjectURL(file);
+                  setCustomCarAssets(prev => ({
+                      ...prev,
+                      1: { ...prev[1], glb: url, glbName: file.name }
+                  }));
+                  // Opcional: Feedback visual o log
+                  console.log("Modelo GLB asignado al Piloto 1:", file.name);
+              }
+          };
+
           useEffect(() => { const loadingScreen = document.getElementById('loading-screen'); if (loadingScreen) { loadingScreen.style.opacity = '0'; setTimeout(() => loadingScreen.style.display = 'none', 1000); } }, []);
           const currentBrand = TRACK_DEFINITIONS[activeBrand]; const neonClass = currentBrand.uiClass;
 
@@ -1836,7 +2077,12 @@
               )}
 
               <div className="bg-[#0f172a] border-b border-[#1e293b] shadow-lg z-20 flex flex-col shrink-0 relative">
-                  <div className="flex items-center gap-4 px-4 py-3 overflow-x-auto hide-scrollbar bg-black/50"> <h1 className="text-xl font-black tracking-tighter shrink-0 mr-4" style={{ color: '#39ff14', textShadow: '0 0 15px rgba(57, 255, 20, 0.9), 0 0 30px rgba(57, 255, 20, 0.5)' }}> TRACKS & TELEMETRY </h1> <div className="flex gap-4">{Object.keys(TRACK_DEFINITIONS).map(k => (<button key={k} onClick={()=>{setActiveBrand(k); setHistory([[]]); setHistoryStep(0); }} className={`text-sm font-bold px-4 py-2 rounded-full uppercase tracking-widest transition-all shrink-0 border ${activeBrand === k ? TRACK_DEFINITIONS[k].activeClass : 'bg-transparent border-[#334155] text-gray-500 hover:text-gray-300 hover:border-gray-400'}`}>{TRACK_DEFINITIONS[k].name}</button>))}</div> </div>
+                  <div className="flex items-center gap-4 px-4 py-3 overflow-x-auto hide-scrollbar bg-black/50"> 
+                      <div className="flex items-center gap-2 mr-4">
+                          <h1 className="text-xl font-black tracking-tighter shrink-0" style={{ color: '#39ff14', textShadow: '0 0 15px rgba(57, 255, 20, 0.9), 0 0 30px rgba(57, 255, 20, 0.5)' }}> TRACKS & TELEMETRY </h1> 
+                          <span className="text-[9px] bg-[#39ff14]/20 text-[#39ff14] border border-[#39ff14] px-1.5 py-0.5 rounded font-bold tracking-widest uppercase flex items-center gap-1"><Zap size={8} fill="currentColor"/> BLINDADO</span>
+                      </div>
+                      <div className="flex gap-4">{Object.keys(TRACK_DEFINITIONS).map(k => (<button key={k} onClick={()=>{setActiveBrand(k); setHistory([[]]); setHistoryStep(0); }} className={`text-sm font-bold px-4 py-2 rounded-full uppercase tracking-widest transition-all shrink-0 border ${activeBrand === k ? TRACK_DEFINITIONS[k].activeClass : 'bg-transparent border-[#334155] text-gray-500 hover:text-gray-300 hover:border-gray-400'}`}>{TRACK_DEFINITIONS[k].name}</button>))}</div> </div>
                   <div className="flex items-center overflow-x-auto hide-scrollbar px-4 py-2 gap-2 bg-[#1e293b] shadow-[inset_0_10px_20px_rgba(0,0,0,0.5)]"> 
                       {categories.map(cat => ( <button key={cat} onClick={() => setActiveCategory(cat)} className="px-6 py-2 text-xs font-bold rounded-lg uppercase shrink-0 transition-all duration-300 border backdrop-blur-sm" style={{ borderColor: activeCategory === cat ? currentBrand.neonColor : '#334155', color: activeCategory === cat ? '#ffffff' : '#64748b', backgroundColor: activeCategory === cat ? `${currentBrand.neonColor}20` : 'transparent', boxShadow: activeCategory === cat ? `0 0 15px ${currentBrand.neonColor}60, inset 0 0 10px ${currentBrand.neonColor}20` : 'none', textShadow: activeCategory === cat ? `0 0 10px ${currentBrand.neonColor}` : 'none' }}> {cat} </button> ))} 
                   </div>
@@ -1940,7 +2186,26 @@
                           </div> 
                       </div> 
                   )}
-                  <div className="absolute bottom-6 left-0 w-full flex justify-center md:justify-start md:left-6 md:w-auto pointer-events-none z-30"> <div className="flex gap-3 pointer-events-auto bg-black/40 p-3 rounded-xl backdrop-blur-sm border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)]"> <button onClick={handleUndo} className={`flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group ${historyStep === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]'}`} title="Deshacer última acción" disabled={historyStep === 0}> <Undo2 size={24} className="mb-1 group-hover:scale-110 transition-transform"/> <span className="text-[9px] font-black tracking-widest">DESHACER</span> </button> <button onClick={handleRedo} className={`flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group ${historyStep < history.length - 1 ? 'hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]' : 'opacity-50 cursor-not-allowed'}`} title="Rehacer acción deshecha" disabled={historyStep === history.length - 1}> <Redo2 size={24} className="mb-1 group-hover:scale-110 transition-transform"/> <span className="text-[9px] font-black tracking-widest">REHACER</span> </button> <button onClick={handleZoomOut} className="flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]"> <ZoomOut size={24} className="mb-1 group-hover:scale-110 transition-transform"/> <span className="text-[9px] font-black tracking-widest">ALEJAR</span> </button> <button onClick={fitToScreen} className="flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]"> <Crosshair size={24} className="mb-1 group-hover:rotate-45 transition-transform"/> <span className="text-[9px] font-black tracking-widest">CENTRAR</span> </button> <button onClick={handleZoomIn} className="flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]"> <ZoomIn size={24} className="mb-1 group-hover:scale-110 transition-transform"/> <span className="text-[9px] font-black tracking-widest">ACERCAR</span> </button> </div> </div>
+                  <div className="absolute bottom-6 left-0 w-full flex justify-center md:justify-start md:left-6 md:w-auto pointer-events-none z-30"> 
+                      <div className="flex gap-3 pointer-events-auto bg-black/40 p-3 rounded-xl backdrop-blur-sm border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)] relative"> 
+                          {/* VISOR HOMO INTEGRADO AQUÍ */}
+                          {showHomoViewer && (
+                              <div className="absolute bottom-full left-0 mb-4 pointer-events-auto">
+                                  <GLBViewer 
+                                      onClose={() => setShowHomoViewer(false)} 
+                                      onLoad={handleModelAssign} 
+                                  />
+                              </div>
+                          )}
+
+                          <button onClick={handleUndo} className={`flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group ${historyStep === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]'}`} title="Deshacer última acción" disabled={historyStep === 0}> <Undo2 size={24} className="mb-1 group-hover:scale-110 transition-transform"/> <span className="text-[9px] font-black tracking-widest">DESHACER</span> </button> 
+                          <button onClick={handleRedo} className={`flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group ${historyStep < history.length - 1 ? 'hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]' : 'opacity-50 cursor-not-allowed'}`} title="Rehacer acción deshecha" disabled={historyStep === history.length - 1}> <Redo2 size={24} className="mb-1 group-hover:scale-110 transition-transform"/> <span className="text-[9px] font-black tracking-widest">REHACER</span> </button> 
+                          <button onClick={handleZoomOut} className="flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]"> <ZoomOut size={24} className="mb-1 group-hover:scale-110 transition-transform"/> <span className="text-[9px] font-black tracking-widest">ALEJAR</span> </button> 
+                          <button onClick={fitToScreen} className="flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]"> <Crosshair size={24} className="mb-1 group-hover:rotate-45 transition-transform"/> <span className="text-[9px] font-black tracking-widest">CENTRAR</span> </button> 
+                          <button onClick={handleZoomIn} className="flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]"> <ZoomIn size={24} className="mb-1 group-hover:scale-110 transition-transform"/> <span className="text-[9px] font-black tracking-widest">ACERCAR</span> </button> 
+                          <button onClick={() => setShowHomoViewer(!showHomoViewer)} className={`flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group ${showHomoViewer ? 'bg-cyan-900/50 border-cyan-400 text-white' : 'hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]'}`}> <User size={24} className="mb-1 group-hover:scale-110 transition-transform"/> <span className="text-[9px] font-black tracking-widest">HOMO</span> </button> 
+                      </div> 
+                  </div>
                   {selectedPieceId && pieces.find(p=>p.uid===selectedPieceId) && ( <div className={`absolute top-6 right-6 bg-[#0f172a]/90 p-5 rounded-2xl shadow-2xl border w-72 backdrop-blur-md ${neonClass}`}> <div className="flex justify-between items-start mb-4 border-b border-white/10 pb-3"><div><h3 className="text-lg font-black text-white">{pieces.find(p=>p.uid===selectedPieceId).label}</h3></div><button onClick={()=>setSelectedPieceId(null)} className="hover:text-white text-gray-500 transition"><X size={20}/></button></div> <div className="space-y-4"> <button onClick={toggleInvertPiece} className="w-full flex items-center justify-center gap-3 px-4 py-4 rounded-xl text-xs font-bold bg-[#1e293b] text-gray-400 border border-[#334155] hover:bg-[#334155] transition shadow-[0_0_10px_rgba(255,255,255,0.1)] hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"><Repeat size={18}/> INVERTIR 180°</button> <div className="pt-3 border-t border-white/10"><button onClick={removePiece} className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-red-900/20 text-red-500 border border-red-900/50 rounded-xl text-xs font-bold hover:bg-red-900/40 transition shadow-[0_0_10px_rgba(239,68,68,0.2)] hover:shadow-[0_0_20px_rgba(239,68,68,0.4)]"><Trash2 size={18}/> ELIMINAR</button></div> </div> </div> )}
               </div>
             </div>
