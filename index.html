@@ -885,6 +885,19 @@
                     const physicsGroup = new THREE.Group(); const visualGroup = new THREE.Group(); physicsGroup.add(visualGroup);
                     const config = carAssetsRef.current[id] || {}; 
                     
+                    // Coche Geométrico por Defecto (Mover arriba para que sea accesible)
+                    const createGeometricCar = () => { 
+                        const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.6 }); 
+                        const bodyGeo = new THREE.BoxGeometry(4.5, 1.2, 9); 
+                        const body = new THREE.Mesh(bodyGeo, bodyMat); body.position.y = 0.8; body.castShadow = true; visualGroup.add(body); 
+                        const cockpitGeo = new THREE.BoxGeometry(3.5, 0.8, 4); 
+                        const cockpitMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 }); 
+                        const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat); cockpit.position.y = 1.8; visualGroup.add(cockpit); 
+                        const wheelGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.8, 16); wheelGeo.rotateZ(Math.PI/2); 
+                        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 }); 
+                        [[-2.5, 3], [2.5, 3], [-2.5, -3], [2.5, -3]].forEach(p => { const w = new THREE.Mesh(wheelGeo, wheelMat); w.position.set(p[0], 1.2, p[1]); visualGroup.add(w); }); 
+                    };
+
                     // LÓGICA DE CARGA DE MODELOS (GLB AÑADIDO Y CORREGIDO CON SOPORTE DRACO)
                     if (config.glb && typeof THREE.GLTFLoader !== 'undefined') {
                         const loader = new THREE.GLTFLoader();
@@ -897,6 +910,9 @@
                         }
 
                         loader.load(config.glb, (gltf) => {
+                            // Limpiar cualquier fallback previo si existiera
+                            while(visualGroup.children.length > 0){ visualGroup.remove(visualGroup.children[0]); }
+
                             const object = gltf.scene;
                             // Normalizar Escala y Posición para la Pista
                             const box = new THREE.Box3().setFromObject(object);
@@ -930,14 +946,18 @@
                                 } 
                             }); 
                             visualGroup.add(object);
+                        }, undefined, (err) => {
+                            // FALLBACK: Si falla la carga del GLB, usamos el geométrico
+                            console.warn(`Error cargando GLB para coche ${id}, usando fallback geométrico`, err);
+                            // Asegurar limpieza
+                            while(visualGroup.children.length > 0){ visualGroup.remove(visualGroup.children[0]); }
+                            createGeometricCar();
                         });
                     } else if (config.obj && config.obj.length > 0 && typeof THREE.OBJLoader !== 'undefined') {
                         // ... existing OBJ loader logic ...
                         const loadModel = (materials = null) => { const objLoader = new THREE.OBJLoader(); if (materials) { objLoader.setMaterials(materials); } objLoader.load(config.obj, (object) => { const box = new THREE.Box3().setFromObject(object); const size = box.getSize(new THREE.Vector3()); const center = box.getCenter(new THREE.Vector3()); object.position.x += (object.position.x - center.x); object.position.y += (object.position.y - center.y); object.position.z += (object.position.z - center.z); const maxDim = Math.max(size.x, size.y, size.z); const targetSize = 10.0; const scaleFactor = targetSize / maxDim; object.scale.set(scaleFactor, scaleFactor, scaleFactor); object.position.y += (size.y * scaleFactor) / 2; object.traverse((child) => { if (child.isMesh) { child.castShadow = true; if (!materials && !config.texture) { child.material = new THREE.MeshStandardMaterial({ color: color, metalness: 0.5, roughness: 0.5 }); } if (config.texture) { const texLoader = new THREE.TextureLoader(); texLoader.load(config.texture, (tex) => { child.material.map = tex; child.material.needsUpdate = true; }); } } }); visualGroup.add(object); }, undefined, (err) => { console.warn("Error cargando OBJ, usando geométrico", err); createGeometricCar(); }); };
                         if (config.mtl && config.mtl.length > 0 && typeof THREE.MTLLoader !== 'undefined') { const mtlLoader = new THREE.MTLLoader(); mtlLoader.load(config.mtl, (materials) => { materials.preload(); loadModel(materials); }, undefined, () => loadModel(null)); } else { loadModel(null); }
                     } else {
-                        // Coche Geométrico por Defecto
-                        const createGeometricCar = () => { const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.6 }); const bodyGeo = new THREE.BoxGeometry(4.5, 1.2, 9); const body = new THREE.Mesh(bodyGeo, bodyMat); body.position.y = 0.8; body.castShadow = true; visualGroup.add(body); const cockpitGeo = new THREE.BoxGeometry(3.5, 0.8, 4); const cockpitMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 }); const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat); cockpit.position.y = 1.8; visualGroup.add(cockpit); const wheelGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.8, 16); wheelGeo.rotateZ(Math.PI/2); const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 }); [[-2.5, 3], [2.5, 3], [-2.5, -3], [2.5, -3]].forEach(p => { const w = new THREE.Mesh(wheelGeo, wheelMat); w.position.set(p[0], 1.2, p[1]); visualGroup.add(w); }); };
                         createGeometricCar();
                     } 
                     return physicsGroup; 
@@ -1845,7 +1865,7 @@
                 const file = e.target.files[0];
                 if (!file) return;
 
-                setStatus("CARGANDO...");
+                setStatus("SUBIENDO AL SERVIDOR..."); // Simulación de feedback de subida
                 
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -1904,7 +1924,7 @@
                             setCurrentRotation(Math.PI);
 
                             scene.add(model);
-                            setStatus(`VISUALIZANDO: ${file.name.toUpperCase()}`);
+                            setStatus(`COCHE ENCONTRADO EN ÍNDICE: ${file.name.toUpperCase()}`);
                             
                             // Callback para asignar al Piloto seleccionado automáticamente
                             if (onLoad) onLoad(file, targetCarId);
