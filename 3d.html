@@ -19,8 +19,15 @@
     <!-- FUENTES DIGITALES -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     
-    <!-- THREE.JS -->
+    <!-- THREE.JS CORE -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- THREE.JS LOADERS & CONTROLS -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MTLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <style>
         /* ESTILOS GLOBALES */
@@ -103,8 +110,8 @@
             const [tag, attrs, children = []] = iconData;
             return <svg {...attrs} width={size} height={size} className={className} {...props}>{Array.isArray(children) && children.map(([childTag, childAttrs], index) => React.createElement(childTag, { ...childAttrs, key: index }))}</svg>;
         };
-        const icons = ['Trash2','Image','Fuel','Move','Zap','Bluetooth','RotateCw','X','Repeat','PenTool','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Square','FolderOpen','Save','FileText','Activity','Play','Pause','Flag','GitCommit','ZoomIn','ZoomOut','Crosshair','Undo2','Redo2','Layers','Clock','Hash','Plus','Minus','AlertTriangle', 'Cloud', 'CloudUpload', 'CloudDownload', 'Settings', 'Battery', 'Scale', 'Trophy', 'Timer', 'Gauge', 'Maximize', 'Minimize', 'User', 'Users'].reduce((acc, name) => { acc[name] = (p) => <IconWrapper name={name} {...p} />; return acc; }, {});
-        const { Trash2, Image: ImageIcon, Fuel, Move, Zap, Bluetooth, RotateCw, X, Repeat, PenTool, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Square, FolderOpen, Save, FileText, Activity, Play, Pause, Flag, GitCommit, ZoomIn, ZoomOut, Crosshair, Undo2, Redo2, Layers, Clock, Hash, Plus, Minus, AlertTriangle, Cloud, CloudUpload, CloudDownload, Settings, Battery, Scale, Trophy, Timer, Gauge, Maximize, Minimize, User, Users } = icons;
+        const icons = ['Trash2','Image','Fuel','Move','Zap','Bluetooth','RotateCw','X','Repeat','PenTool','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Square','FolderOpen','Save','FileText','Activity','Play','Pause','Flag','GitCommit','ZoomIn','ZoomOut','Crosshair','Undo2','Redo2','Layers','Clock','Hash','Plus','Minus','AlertTriangle', 'Cloud', 'CloudUpload', 'CloudDownload', 'Settings', 'Battery', 'Scale', 'Trophy', 'Timer', 'Gauge', 'Maximize', 'Minimize', 'User', 'Users', 'ChevronDown'].reduce((acc, name) => { acc[name] = (p) => <IconWrapper name={name} {...p} />; return acc; }, {});
+        const { Trash2, Image: ImageIcon, Fuel, Move, Zap, Bluetooth, RotateCw, X, Repeat, PenTool, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Square, FolderOpen, Save, FileText, Activity, Play, Pause, Flag, GitCommit, ZoomIn, ZoomOut, Crosshair, Undo2, Redo2, Layers, Clock, Hash, Plus, Minus, AlertTriangle, Cloud, CloudUpload, CloudDownload, Settings, Battery, Scale, Trophy, Timer, Gauge, Maximize, Minimize, User, Users, ChevronDown } = icons;
 
         /* --- 2. COMPONENTES VISUALES --- */
         const MotorSVG = ({ type, color, label }) => {
@@ -129,6 +136,191 @@
         const GearSVG = ({ teeth, color, material }) => (<svg viewBox="0 0 60 60" className="w-full h-full transform transition-transform hover:rotate-90 duration-500"><path d="M30,2 L32,6 L36,6 L38,2 L42,4 L42,8 L46,10 L48,6 L52,9 L50,14 L54,16 L58,14 L58,19 L54,22 L56,26 L60,28 L58,32 L54,34 L56,38 L58,41 L54,44 L50,42 L48,46 L52,50 L48,54 L44,52 L42,56 L38,58 L36,54 L32,54 L30,58 L26,56 L24,52 L20,54 L16,50 L20,46 L18,42 L14,44 L10,41 L12,37 L8,34 L4,32 L2,28 L6,26 L8,22 L4,19 L4,14 L8,16 L12,14 L10,9 L14,6 L16,10 L20,8 L20,4 L24,2 L26,6 L30,6 Z" fill={color} stroke="#000" strokeWidth="0.5"/><circle cx="30" cy="30" r="10" fill={material==='Bronce'?'#92400e':(material==='Dural'?'#94a3b8':'#e2e8f0')} stroke="#000" strokeWidth="1"/><circle cx="30" cy="30" r="3" fill="#000"/></svg>);
         const PinionSVG = ({ teeth, material, diameter }) => (<svg viewBox="0 0 40 40" className="w-full h-full transform transition-transform hover:rotate-180 duration-500"><circle cx="20" cy="20" r="18" fill="none" stroke="#666" strokeWidth="2" strokeDasharray="3,1"/><path d="M20,2 L23,5 L28,5 L30,8 L35,10 L35,15 L32,18 L35,22 L35,28 L30,32 L25,32 L22,35 L18,35 L15,32 L10,32 L5,28 L5,22 L8,18 L5,15 L5,10 L10,8 L12,5 L17,5 Z" fill={material==='Latón'?'#fbbf24':(material==='Nylon'?'#fff':'#94a3b8')} stroke="#000" strokeWidth="0.5"/><circle cx="20" cy="20" r="4" fill="#000"/></svg>);
         
+        /* --- COMPONENTE GLB VIEWER (HOMO) --- */
+        const GLBViewer = ({ onClose, onLoad, onRotationToggle }) => { const mountRef = useRef(null); const inputRef = useRef(null); const [status, setStatus] = useState("ESPERANDO..."); const [targetCarId, setTargetCarId] = useState(1); const [showCarMenu, setShowCarMenu] = useState(false); const [currentRotation, setCurrentRotation] = useState(Math.PI); const rendererRef = useRef(null); const sceneRef = useRef(null); const cameraRef = useRef(null); const controlsRef = useRef(null); const modelRef = useRef(null);
+        
+        // GITHUB STATE CON PERSISTENCIA
+        const [ghConfig, setGhConfig] = useState(() => {
+            const saved = localStorage.getItem('slot_gh_config');
+            // Configuración por defecto actualizada con tu usuario y repo
+            return saved ? JSON.parse(saved) : { owner: 'slotcarhome-star', repo: 'Telemetria', path: '', branch: 'main' };
+        });
+        const [isEditingConfig, setIsEditingConfig] = useState(false);
+        const [onlineFiles, setOnlineFiles] = useState([]);
+        const [showFileMenu, setShowFileMenu] = useState(false);
+
+        // Fetch archivos de GitHub
+        useEffect(() => {
+            if (!showFileMenu) return;
+            if (!ghConfig.owner || !ghConfig.repo) {
+                setIsEditingConfig(true); // Forzar edición si no hay config
+                return;
+            }
+            // Si hay config y no estamos editando, cargar
+            if (!isEditingConfig) {
+                setStatus("BUSCANDO EN GITHUB...");
+                const path = ghConfig.path ? `/${ghConfig.path}` : '';
+                const apiUrl = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents${path}`;
+                
+                fetch(apiUrl)
+                    .then(res => {
+                        if (res.status === 404) throw new Error("Repo no encontrado");
+                        // Si nos da error de tasa (rate limit), lanzamos error para mostrar botón manual
+                        if (res.status === 403) throw new Error("Límite API excedido");
+                        return res.json();
+                    })
+                    .then(data => {
+                        if (Array.isArray(data)) {
+                            const glbFiles = data.filter(f => f.name.toLowerCase().endsWith('.glb') || f.name.toLowerCase().endsWith('.gltf'));
+                            setOnlineFiles(glbFiles);
+                            setStatus(glbFiles.length > 0 ? "ARCHIVOS ENCONTRADOS" : "SIN ARCHIVOS 3D");
+                        } else {
+                            setOnlineFiles([]);
+                            setStatus("CARPETA VACÍA");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error GitHub:", err);
+                        setStatus("ERROR CONEXIÓN (VER LOG)");
+                        setOnlineFiles([]); // Asegura lista vacía para mostrar fallback
+                    });
+            }
+        }, [showFileMenu, ghConfig, isEditingConfig]);
+
+        const saveGithubConfig = (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const newConfig = {
+                owner: formData.get('owner').trim(),
+                repo: formData.get('repo').trim(),
+                path: formData.get('path').trim(),
+                branch: formData.get('branch').trim() || 'main'
+            };
+            
+            if (newConfig.owner && newConfig.repo) {
+                localStorage.setItem('slot_gh_config', JSON.stringify(newConfig));
+                setGhConfig(newConfig);
+                setIsEditingConfig(false);
+                setStatus("CONFIGURACIÓN GUARDADA");
+            }
+        };
+
+        useEffect(() => { if (!mountRef.current) return; if (typeof THREE === 'undefined') { setStatus("ERROR: THREE.JS NO CARGADO"); return; } if (typeof THREE.GLTFLoader === 'undefined') { setStatus("ERROR: GLTFLOADER NO CARGADO"); return; } const width = mountRef.current.clientWidth || 300; const height = mountRef.current.clientHeight || 300; const scene = new THREE.Scene(); sceneRef.current = scene; const camera = new THREE.PerspectiveCamera(50, width / height, 0.01, 1000); camera.position.set(0, 2, 4); cameraRef.current = camera; const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); renderer.setSize(width, height); renderer.setPixelRatio(window.devicePixelRatio); renderer.outputEncoding = THREE.sRGBEncoding; mountRef.current.appendChild(renderer.domElement); rendererRef.current = renderer; const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5); scene.add(hemiLight); const dirLight = new THREE.DirectionalLight(0xffffff, 2); dirLight.position.set(2, 5, 3); dirLight.castShadow = true; scene.add(dirLight); const grid = new THREE.GridHelper(10, 10, 0x39ff14, 0x333333); scene.add(grid); const axes = new THREE.AxesHelper(1); scene.add(axes); if (typeof THREE.OrbitControls !== 'undefined') { const controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.autoRotate = true; controls.target.set(0, 0.5, 0); controlsRef.current = controls; } const resizeObserver = new ResizeObserver(entries => { window.requestAnimationFrame(() => { for (let entry of entries) { const { width, height } = entry.contentRect; if (width && height && renderer && camera) { camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height); } } }); }); resizeObserver.observe(mountRef.current); let frameId; const animate = () => { frameId = requestAnimationFrame(animate); if (controlsRef.current) controlsRef.current.update(); renderer.render(scene, camera); }; animate(); return () => { cancelAnimationFrame(frameId); resizeObserver.disconnect(); if (renderer) { renderer.dispose(); mountRef.current?.removeChild(renderer.domElement); } }; }, []); 
+        
+        const toggleRotation = () => { const newRotation = currentRotation === 0 ? Math.PI : 0; setCurrentRotation(newRotation); if (modelRef.current) { modelRef.current.rotation.y = newRotation; } if (onRotationToggle) { onRotationToggle(targetCarId, newRotation); } }; 
+        const adjustHeight = (direction) => { if (modelRef.current) { modelRef.current.position.y += direction * 0.1; } }; 
+
+        const processLoadedModel = (model, fileName, url) => {
+            const scene = sceneRef.current;
+            if (!scene) return;
+            scene.children = scene.children.filter(obj => obj.isLight || obj.isGridHelper || obj.isAxesHelper);
+            modelRef.current = model;
+            model.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; if (child.material) { child.material.side = THREE.DoubleSide; child.material.needsUpdate = true; } } });
+            const box = new THREE.Box3().setFromObject(model); const size = box.getSize(new THREE.Vector3()); const center = box.getCenter(new THREE.Vector3());
+            model.position.x += (model.position.x - center.x); model.position.y += (model.position.y - center.y); model.position.z += (model.position.z - center.z);
+            const maxDim = Math.max(size.x, size.y, size.z); const scale = maxDim > 0 ? 2.5 / maxDim : 1;
+            model.scale.set(scale, scale, scale); model.position.y += (size.y * scale) / 2; model.rotation.y = Math.PI; setCurrentRotation(Math.PI); scene.add(model);
+            setStatus(`CARGADO: ${fileName.toUpperCase()}`);
+            if (url) { fetch(url).then(r => r.blob()).then(blob => { const file = new File([blob], fileName, { type: 'model/gltf-binary' }); if (onLoad) onLoad(file, targetCarId); }); }
+            if (onRotationToggle) onRotationToggle(targetCarId, Math.PI);
+        };
+
+        const loadFromGitHub = (fileData) => {
+            setShowFileMenu(false);
+            setStatus(`DESCARGANDO: ${fileData.name}...`);
+            const rawUrl = `https://raw.githubusercontent.com/${ghConfig.owner}/${ghConfig.repo}/${ghConfig.branch}/${ghConfig.path ? ghConfig.path + '/' : ''}${fileData.name}`;
+            const loader = new THREE.GLTFLoader();
+            if (typeof THREE.DRACOLoader !== 'undefined') { const dracoLoader = new THREE.DRACOLoader(); dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); loader.setDRACOLoader(dracoLoader); }
+            loader.load(rawUrl, (gltf) => processLoadedModel(gltf.scene, fileData.name, rawUrl), (xhr) => setStatus(`BAJANDO ${(xhr.loaded / xhr.total * 100).toFixed(0)}%`), (err) => { console.error(err); setStatus("ERROR DESCARGA GITHUB"); });
+        };
+
+        const loadDirectFile = (fileName) => {
+            // Helper para cargar archivo directo sin pasar por el listado de API
+            loadFromGitHub({ name: fileName });
+        };
+
+        const handleFileChange = (e) => { 
+            const file = e.target.files[0]; if (!file) return; setStatus("PROCESANDO LOCAL..."); 
+            const reader = new FileReader(); 
+            reader.onload = (event) => { 
+                const loader = new THREE.GLTFLoader(); 
+                if (typeof THREE.DRACOLoader !== 'undefined') { const dracoLoader = new THREE.DRACOLoader(); dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); loader.setDRACOLoader(dracoLoader); } 
+                loader.parse(event.target.result, '', (gltf) => { processLoadedModel(gltf.scene, file.name, null); if (onLoad) onLoad(file, targetCarId); }, (err) => { console.error(err); setStatus("ERROR PARSE GLB"); }); 
+            }; 
+            reader.readAsArrayBuffer(file); e.target.value = ''; 
+        }; 
+        
+        const triggerFileSelect = () => { if (inputRef.current) inputRef.current.click(); }; 
+        
+        return ( 
+            <div className="w-80 h-80 bg-[#0f172a] border-2 border-[#39ff14] rounded-xl shadow-[0_0_40px_rgba(57,255,20,0.2)] flex flex-col overflow-hidden animate-in z-50 pointer-events-auto relative">
+                <div className="bg-[#39ff14]/10 p-2 flex justify-between items-center border-b border-[#39ff14]/30 gap-2 h-10 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0"><span className="w-2 h-2 bg-[#39ff14] rounded-full animate-pulse"></span><h3 className="text-[10px] font-black text-white tracking-[0.2em]">VISOR</h3></div> 
+                    <div className="relative"><button onClick={() => setShowCarMenu(!showCarMenu)} className="flex items-center gap-1 bg-black/60 border border-[#39ff14]/30 hover:border-[#39ff14] rounded px-2 py-1 transition-all group" ><span className="text-[8px] font-bold text-gray-400 group-hover:text-gray-300">ASIGNAR:</span><span className="text-[9px] font-mono font-bold text-[#39ff14] group-hover:text-white">COCHE {targetCarId}</span><ChevronDown size={8} className="text-[#39ff14] opacity-50 group-hover:opacity-100 transition-transform duration-300" style={{ transform: showCarMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}/></button> 
+                        {showCarMenu && ( <div className="absolute top-full left-0 mt-1 w-24 bg-[#0a0a0a] border border-[#39ff14] shadow-[0_0_15px_rgba(57,255,20,0.2)] z-[100] flex flex-col max-h-32 overflow-y-auto hide-scrollbar rounded-sm animate-in origin-top"> {[1,2,3,4,5,6,7,8].map(id => ( <button key={id} onClick={() => { setTargetCarId(id); setShowCarMenu(false); }} className={`px-2 py-1.5 text-[8px] font-mono text-left transition-all border-b border-[#39ff14]/10 flex justify-between items-center ${targetCarId === id ? 'bg-[#39ff14] text-black font-black' : 'text-[#39ff14] hover:bg-[#39ff14]/20 hover:pl-3'}`} ><span>COCHE {id}</span> {targetCarId === id && <span className="w-1 h-1 bg-black rounded-full"></span>} </button> ))} </div> )} 
+                    </div> 
+                    <div className="flex items-center gap-1 shrink-0 ml-auto"> 
+                        <button onClick={toggleRotation} className="flex items-center justify-center w-7 h-6 bg-[#39ff14]/20 hover:bg-[#39ff14] text-[#39ff14] hover:text-black rounded transition border border-[#39ff14]/50 shadow-[0_0_10px_rgba(57,255,20,0.1)] active:scale-95" title={`Girar 180º (Actual: ${Math.round(currentRotation * 180 / Math.PI)}º)`} ><RotateCw size={12} className={`transition-transform duration-500 ${currentRotation === 0 ? 'rotate-180' : ''}`}/></button> 
+                        <div className="flex flex-col ml-1"><button onClick={() => adjustHeight(1)} className="w-6 h-3 bg-black/40 hover:bg-[#39ff14] text-[#39ff14] hover:text-black flex items-center justify-center rounded-t border border-[#39ff14]/30 active:bg-[#39ff14]/80" title="Subir"><ArrowUp size={8}/></button><button onClick={() => adjustHeight(-1)} className="w-6 h-3 bg-black/40 hover:bg-[#39ff14] text-[#39ff14] hover:text-black flex items-center justify-center rounded-b border-x border-b border-[#39ff14]/30 active:bg-[#39ff14]/80" title="Bajar"><ArrowDown size={8}/></button></div>
+                        
+                        {/* BOTÓN NUBE GITHUB */}
+                        <div className="relative">
+                            <button onClick={() => setShowFileMenu(!showFileMenu)} className="flex items-center justify-center w-7 h-6 bg-[#3b82f6]/20 hover:bg-[#3b82f6] text-[#3b82f6] hover:text-white rounded transition border border-[#3b82f6]/50 shadow-[0_0_10px_rgba(59,130,246,0.2)] active:scale-95 ml-1" title="Cargar desde GitHub"><CloudDownload size={12} /></button>
+                            {showFileMenu && (
+                                <div className="absolute top-full right-0 mt-1 w-56 bg-[#0a0a0a] border border-[#39ff14] shadow-[0_0_20px_rgba(57,255,20,0.3)] z-[100] flex flex-col max-h-64 overflow-hidden rounded-sm animate-in origin-top-right">
+                                    <div className="px-2 py-1 text-[7px] font-bold text-gray-500 border-b border-gray-800 bg-gray-900 uppercase tracking-widest flex justify-between items-center">
+                                        <span>ARCHIVOS EN LA NUBE</span>
+                                        <button onClick={() => setIsEditingConfig(!isEditingConfig)} className="text-[#39ff14] hover:text-white"><Settings size={10}/></button>
+                                    </div>
+                                    
+                                    {isEditingConfig ? (
+                                        <div className="p-2 bg-gray-900">
+                                            <form onSubmit={saveGithubConfig} className="flex flex-col gap-2">
+                                                <input name="owner" placeholder="Usuario GitHub" defaultValue={ghConfig.owner} className="bg-black border border-gray-700 text-[9px] text-white px-1 py-1 rounded focus:border-[#39ff14] outline-none" required />
+                                                <input name="repo" placeholder="Repositorio" defaultValue={ghConfig.repo} className="bg-black border border-gray-700 text-[9px] text-white px-1 py-1 rounded focus:border-[#39ff14] outline-none" required />
+                                                <input name="branch" placeholder="Rama (ej: main, gh-pages)" defaultValue={ghConfig.branch || 'main'} className="bg-black border border-gray-700 text-[9px] text-white px-1 py-1 rounded focus:border-[#39ff14] outline-none" />
+                                                <input name="path" placeholder="Carpeta (opcional)" defaultValue={ghConfig.path} className="bg-black border border-gray-700 text-[9px] text-white px-1 py-1 rounded focus:border-[#39ff14] outline-none" />
+                                                <button type="submit" className="bg-[#39ff14] text-black text-[9px] font-bold py-1 rounded hover:bg-white transition">GUARDAR Y CONECTAR</button>
+                                            </form>
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-y-auto max-h-48 hide-scrollbar">
+                                            {onlineFiles.length === 0 ? (
+                                                <div className="p-2 text-[8px] text-gray-400 text-center italic flex flex-col gap-2">
+                                                    <span>{!ghConfig.owner ? "Configura tu cuenta primero" : "No se encontraron .glb (o límite API)"}</span>
+                                                    {/* FALLBACK ESPECÍFICO PARA EL USUARIO: Si la API falla pero es su repo, ofrecer botón directo */}
+                                                    {ghConfig.owner === 'slotcarhome-star' && ghConfig.repo === 'Telemetria' && (
+                                                        <button onClick={() => loadDirectFile('amartin.glb')} className="text-[#39ff14] hover:text-white hover:bg-[#39ff14]/20 cursor-pointer border border-[#39ff14]/30 rounded px-2 py-1 bg-[#39ff14]/10 transition-all font-bold tracking-wider animate-pulse">
+                                                            ⬇ Forzar Carga: amartin.glb
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                onlineFiles.map((file, i) => (
+                                                    <button key={i} onClick={() => loadFromGitHub(file)} className="w-full px-2 py-1.5 text-[8px] font-mono text-left transition-all border-b border-[#39ff14]/10 text-[#39ff14] hover:bg-[#39ff14]/20 hover:pl-3 flex items-center gap-2">
+                                                        <Cloud size={8} /> {file.name}
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <button onClick={triggerFileSelect} className="flex items-center gap-1 bg-[#39ff14]/20 hover:bg-[#39ff14] text-[#39ff14] hover:text-black px-2 py-1 rounded text-[9px] font-bold transition border border-[#39ff14]/50 shadow-[0_0_10px_rgba(57,255,20,0.1)] active:scale-95 h-6 ml-1" title="Cargar archivo local" ><FolderOpen size={10} /><span className="tracking-wide">LOCAL</span></button>
+                        <button onClick={onClose} className="text-[#39ff14] hover:text-white transition hover:scale-125 bg-black/20 p-1 rounded-full ml-1"><X size={12} /></button>
+                    </div>
+                </div> 
+                <div className="flex-1 relative bg-black/50 overflow-hidden" ref={mountRef}> 
+                    {showCarMenu && <div className="absolute inset-0 z-50 bg-black/20" onClick={() => setShowCarMenu(false)}></div>} 
+                    {showFileMenu && <div className="absolute inset-0 z-50 bg-black/20" onClick={() => setShowFileMenu(false)}></div>} 
+                    <div className="absolute top-2 left-2 right-2 text-[8px] font-mono text-[#39ff14] bg-black/80 px-2 py-1 rounded pointer-events-none select-none border border-[#39ff14]/20 text-center z-10 backdrop-blur-sm"> {status} </div>
+                </div>
+                <input ref={inputRef} type="file" accept=".glb,.gltf" onChange={handleFileChange} className="hidden" />
+            </div> 
+        ); };
+
         const LapTimeChart = ({ results, carSetups }) => {
             const width = 800, height = 300, padding = 40;
             const carIds = Object.keys(results).map(Number);
@@ -262,7 +454,7 @@
             const speedPercent = Math.min(100, (data.speed / 400) * 100); const rpmPercent = Math.min(100, (data.speed / 300) * 90 + Math.random()*10); return (<div className="w-72 bg-[#050a05]/95 border-2 border-[#39ff14] rounded-xl overflow-hidden shadow-[0_0_40px_rgba(57,255,20,0.2)] backdrop-blur-xl animate-in transform transition-all hover:scale-105"><div className="bg-[#39ff14] text-black px-4 py-2 flex justify-between items-center"><div className="flex items-center gap-2"><Activity size={18} className="animate-pulse"/><h2 className="font-black text-xs tracking-[0.25em] uppercase">TELEMETRÍA EN VIVO</h2></div><span className="font-mono font-bold text-xs bg-black/20 px-2 py-0.5 rounded">COCHE {carId}</span></div><div className="p-4 grid grid-cols-2 gap-4 relative"><div className="absolute inset-0 opacity-10 pointer-events-none" style={{backgroundImage: 'linear-gradient(transparent 9px, #39ff14 1px), linear-gradient(90deg, transparent 9px, #39ff14 1px)', backgroundSize: '20px 20px'}}></div><div className="col-span-2 flex items-end justify-between border-b border-[#39ff14]/30 pb-2"><div><span className="text-[10px] text-[#39ff14]/60 font-bold uppercase block">VELOCIDAD</span><span className="font-digital text-5xl text-white drop-shadow-[0_0_10px_rgba(57,255,20,0.8)] leading-none">{data.speed}</span><span className="text-xs text-[#39ff14] font-bold ml-1">Km/h</span></div><div className="w-1/2 flex flex-col items-end"><div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-[#39ff14]/30"><div className="h-full bg-gradient-to-r from-[#39ff14]/40 via-[#39ff14] to-white transition-all duration-75" style={{width: `${rpmPercent}%`}}></div></div><span className="text-[8px] text-[#39ff14] font-mono mt-1">RPM: {(rpmPercent * 250).toFixed(0)}0</span></div></div><div className="space-y-2"><div className="flex justify-between items-center"><span className="text-[9px] text-gray-400 font-bold">MOTOR</span><span className="text-[9px] text-[#39ff14] font-mono border border-[#39ff14]/30 px-1 rounded">{config.motorName || 'STD'}</span></div><div className="flex justify-between items-center"><span className="text-[9px] text-gray-400 font-bold">GOMAS</span><span className="text-[9px] text-[#39ff14] font-mono border border-[#39ff14]/30 px-1 rounded">{config.tireName || 'STD'}</span></div><div className="flex justify-between items-center"><span className="text-[9px] text-gray-400 font-bold">RELACIÓN</span><span className="text-[9px] text-[#39ff14] font-mono border border-[#39ff14]/30 px-1 rounded">{config.gearRatio ? config.gearRatio.toFixed(2) : '3.00'}</span></div></div><div className="text-right space-y-1"><div><span className="text-[8px] text-gray-500 block uppercase">ÚLTIMA VUELTA</span><span className="font-digital text-lg text-white">{data.lastLap > 0 ? (data.lastLap/1000).toFixed(3) : '--.---'}</span></div><div><span className="text-[8px] text-[#39ff14]/80 block uppercase">MEJOR VUELTA</span><span className="font-digital text-lg text-[#39ff14] drop-shadow-[0_0_5px_rgba(57,255,20,0.5)]">{data.bestLap > 0 && data.bestLap !== Infinity ? (data.bestLap/1000).toFixed(3) : '--.---'}</span></div></div></div></div>); };
         
         /* --- 3. VISOR 3D (CORE LOGIC) --- */
-        const Telemetry3DViewer = ({ circuitData, carSettings, customCarAssets, onClose }) => {
+        const Telemetry3DViewer = ({ circuitData, carSettings, customCarAssets, onCarAssetUpdate, onClose }) => {
             const containerRef = useRef(null);
             const [paused, setPaused] = useState(false); 
             const [laneChangeActive, setLaneChangeActive] = useState(true); 
@@ -280,6 +472,18 @@
             const [sessionResults, setSessionResults] = useState(null);
             const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
             
+            // HOMO VIEWER STATE
+            const [showHomoViewer, setShowHomoViewer] = useState(false);
+            const handleModelAssign = (file, targetId) => {
+                if(onCarAssetUpdate) onCarAssetUpdate(file, targetId);
+            };
+            const handleCarRotation = (targetId, rotY) => {
+                // Aquí podrías implementar la actualización de rotación si tu Slot3DPlayer lo soporta
+                // Por ahora el visor maneja su estado interno
+            };
+
+            const toggleFullscreen = () => { if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); setIsFullscreen(true); } else { if (document.exitFullscreen) { document.exitFullscreen(); setIsFullscreen(false); } } };
+
             const [laneChangePressed, setLaneChangePressed] = useState(false);
             const [pitPressed, setPitPressed] = useState(false);
             const [autoLaneChange, setAutoLaneChange] = useState(false);
@@ -298,6 +502,7 @@
             const selectedCarIdRef = useRef(selectedCarId);
             const trackVoltageRef = useRef(trackVoltage);
             const sessionDataRef = useRef({});
+            const carMeshesRef = useRef([]);
 
             useEffect(() => { laneChangePressedRef.current = laneChangePressed; }, [laneChangePressed]);
             useEffect(() => { pitPressedRef.current = pitPressed; }, [pitPressed]);
@@ -557,7 +762,6 @@
                     car.crossedStartLine = false; 
                 });
             };
-            const toggleFullscreen = () => { if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); setIsFullscreen(true); } else { document.exitFullscreen(); setIsFullscreen(false); } };
 
             useEffect(() => { return () => { if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); if (raceSequenceIntervalRef.current) clearInterval(raceSequenceIntervalRef.current); }; }, []);
 
@@ -649,26 +853,257 @@
                             return; 
                         }
 
-                        const startDist = accumulatedDist, steps = (p.type === 'curve') ? Math.ceil(Math.abs(p.angle) * 2) : 10, stepLen = p.length / steps, totalSweep = (p.type==='curve') ? (p.angle * Math.PI / 180) * (p.direction==='left'?-1:1) : 0, stepAngle = totalSweep / steps; let stepPhysDist = stepLen; if (p.type === 'curve') stepPhysDist = (2 * Math.PI * p.radius) * (Math.abs(p.angle) / 360) / steps;
-                        const isC = p.subtype === 'crossing', isPi = p.type === 'pit_entry', isPo = p.type === 'pit_exit', isCe = p.subtype === 'chicane_entry', isCx = p.subtype === 'chicane_exit';
-                        const pitSide = p.invert ? 'left' : 'right', pitDir = pitSide === 'right' ? 1 : -1;
+                        const startVertexIdx = rails.lane1.length - 1;
+                        const startDist = accumulatedDist;
+                        const steps = (p.type === 'curve') ? Math.ceil(Math.abs(p.angle) * 2) : 10;
+                        const stepLen = p.length / steps;
+                        const totalSweep = (p.type==='curve') ? (p.angle * Math.PI / 180) * (p.direction==='left'?-1:1) : 0;
+                        const stepAngle = totalSweep / steps;
+                        let stepPhysDist = stepLen; if (p.type === 'curve') stepPhysDist = (2 * Math.PI * p.radius) * (Math.abs(p.angle) / 360) / steps;
+                        
+                        const isCrossing = p.subtype === 'crossing';
+                        const isPitEntry = p.type === 'pit_entry';
+                        const isPitExit = p.type === 'pit_exit';
+                        const isChicaneEntry = p.subtype === 'chicane_entry';
+                        const isChicaneExit = p.subtype === 'chicane_exit';
+                        const pitSide = p.invert ? 'left' : 'right';
+                        const pitDir = pitSide === 'right' ? 1 : -1;
+                        
                         let sL1 = l1Off, sL2 = l2Off, tL1 = l1Off, tL2 = l2Off;
-                        if (isC) { tL1 = l2Off; tL2 = l1Off; l1Off = tL1; l2Off = tL2; } else if (isCe) { tL1 = sL1 * 0.2; tL2 = sL2 * 0.2; l1Off = tL1; l2Off = tL2; } else if (isCx) { tL1 = (sL1 > 0 ? 1 : -1) * (laneSpacing / 2); tL2 = (sL2 > 0 ? 1 : -1) * (laneSpacing / 2); l1Off = tL1; l2Off = tL2; }
+                        if (isCrossing) { tL1 = l2Off; tL2 = l1Off; l1Off = tL1; l2Off = tL2; } 
+                        else if (isChicaneEntry) { tL1 = sL1 * 0.2; tL2 = sL2 * 0.2; l1Off = tL1; l2Off = tL2; } 
+                        else if (isChicaneExit) { tL1 = (sL1 > 0 ? 1 : -1) * (laneSpacing / 2); tL2 = (sL2 > 0 ? 1 : -1) * (laneSpacing / 2); l1Off = tL1; l2Off = tL2; }
+                        
                         const d12 = [], d21 = [];
+                        const dStartX = curX, dStartZ = curZ, dStartAngle = curAngle;
+                        
+                        if (['digital_x', 'change_right', 'change_left', 'pit_parallel_double_x'].includes(p.subtype)) {
+                            const perpX = Math.cos(dStartAngle + Math.PI/2);
+                            const perpZ = Math.sin(dStartAngle + Math.PI/2);
+                            if (p.subtype !== 'change_left') d12.push(new THREE.Vector3(dStartX + perpX * sL1, 0.2, dStartZ + perpZ * sL1));
+                            if (p.subtype !== 'change_right') d21.push(new THREE.Vector3(dStartX + perpX * sL2, 0.2, dStartZ + perpZ * sL2));
+                        }
+
                         for (let i = 1; i <= steps; i++) {
                             const t = i / steps; if (p.type === 'curve') { const r = p.radius, chordLen = 2 * r * Math.sin(Math.abs(stepAngle)/2), chordDir = curAngle + stepAngle/2; curX += chordLen * Math.cos(chordDir); curZ += chordLen * Math.sin(chordDir); curAngle += stepAngle; } else { curX += stepLen * Math.cos(curAngle); curZ += stepLen * Math.sin(curAngle); }
-                            let mixT = (isC || isCe || isCx) ? easeSine(t) : t; const cL1 = sL1 + (tL1 - sL1) * mixT, cL2 = sL2 + (tL2 - sL2) * mixT;
+                            let mixT = (isCrossing || isChicaneEntry || isChicaneExit) ? easeSine(t) : t; const cL1 = sL1 + (tL1 - sL1) * mixT, cL2 = sL2 + (tL2 - sL2) * mixT;
                             let cPit = null, cTWL = stdHalf, cTWR = stdHalf;
-                            if (isPi) { const sp = pitDir * (laneSpacing/2), ep = pitDir * pitCenterDist, e = t*t*(3-2*t); cPit = sp + (ep-sp)*e; if(pitSide==='right') cTWR = stdHalf + (pitOuterEdge-stdHalf)*e; else cTWL = stdHalf + (pitOuterEdge-stdHalf)*e; }
-                            else if (isPo) { const sp = pitDir * pitCenterDist, ep = pitDir * (laneSpacing/2), e = t*t*(3-2*t); cPit = sp + (ep-sp)*e; if(pitSide==='right') cTWR = pitOuterEdge - (pitOuterEdge-stdHalf)*e; else cTWL = pitOuterEdge - (pitOuterEdge-stdHalf)*e; }
+                            if (isPitEntry) { const sp = pitDir * (laneSpacing/2), ep = pitDir * pitCenterDist, e = t*t*(3-2*t); cPit = sp + (ep-sp)*e; if(pitSide==='right') cTWR = stdHalf + (pitOuterEdge-stdHalf)*e; else cTWL = stdHalf + (pitOuterEdge-stdHalf)*e; }
+                            else if (isPitExit) { const sp = pitDir * pitCenterDist, ep = pitDir * (laneSpacing/2), e = t*t*(3-2*t); cPit = sp + (ep-sp)*e; if(pitSide==='right') cTWR = pitOuterEdge - (pitOuterEdge-stdHalf)*e; else cTWL = pitOuterEdge - (pitOuterEdge-stdHalf)*e; }
                             else if (p.subtype && p.subtype.includes('pit_parallel')) { cPit = pitDir * pitCenterDist; if(pitSide==='right') cTWR = pitOuterEdge; else cTWL = pitOuterEdge; }
-                            addRailPoint(curX, curZ, curAngle, cL1, cL2, cPit, stepPhysDist); addAsphaltSlice(curX, curZ, curAngle, cTWL, cTWR, accumulatedDist);
-                            if (['digital_x', 'change_right', 'change_left'].includes(p.subtype)) { const ct = easeSine(t), o12 = sL1 + (sL2-sL1)*ct, o21 = sL2 + (sL1-sL2)*ct, px = Math.cos(curAngle+Math.PI/2), pz = Math.sin(curAngle+Math.PI/2); if (p.subtype !== 'change_left') d12.push(new THREE.Vector3(curX+px*o12, 0.2, curZ+pz*o12)); if (p.subtype !== 'change_right') d21.push(new THREE.Vector3(curX+px*o21, 0.2, curZ+pz*o21)); }
+                            
+                            // Handling for single lane rally tracks visually
+                            let curL1_Vis = cL1, curL2_Vis = cL2;
+                            if (p.subtype === 'single_lane_1') { curL2_Vis = null; cTWR = 0; }
+                            if (p.subtype === 'single_lane_2') { curL1_Vis = null; cTWL = 0; }
+
+                            addRailPoint(curX, curZ, curAngle, curL1_Vis, curL2_Vis, cPit, stepPhysDist); 
+                            addAsphaltSlice(curX, curZ, curAngle, cTWL, cTWR, accumulatedDist);
+                            
+                            if (['digital_x', 'change_right', 'change_left', 'pit_parallel_double_x'].includes(p.subtype)) { 
+                                const ct = easeSine(t), o12 = sL1 + (sL2-sL1)*ct, o21 = sL2 + (sL1-sL2)*ct, px = Math.cos(curAngle+Math.PI/2), pz = Math.sin(curAngle+Math.PI/2); 
+                                if (p.subtype !== 'change_left') d12.push(new THREE.Vector3(curX+px*o12, 0.2, curZ+pz*o12)); 
+                                if (p.subtype !== 'change_right') d21.push(new THREE.Vector3(curX+px*o21, 0.2, curZ+pz*o21)); 
+                            }
                         }
-                        if (d12.length > 0) rails.changes.push(d12); if (d21.length > 0) rails.changes.push(d21);
-                        pieceMapRef.current.push({ index, distStart: startDist, distEnd: accumulatedDist, type: p.type, subtype: p.subtype, invert: p.invert, canChangeLane: ['digital_x','change_right','change_left','pit_entry'].includes(p.subtype) || p.type === 'pit_entry' || p.type === 'pit_exit', isPitSection: isPi || isPo || (p.subtype && p.subtype.includes('pit_parallel')) });
+                        if (d12.length > 0) rails.changes.push({ points: d12, refIdx: startVertexIdx, count: steps });
+                        if (d21.length > 0) rails.changes.push({ points: d21, refIdx: startVertexIdx, count: steps });
+                        
+                        pieceMapRef.current.push({ index, distStart: startDist, distEnd: accumulatedDist, type: p.type, subtype: p.subtype, invert: p.invert, canChangeLane: ['digital_x','change_right','change_left','pit_entry', 'pit_parallel_double_x'].includes(p.subtype) || p.type === 'pit_entry' || p.type === 'pit_exit', isPitSection: isPitEntry || isPitExit || (p.subtype && p.subtype.includes('pit_parallel')) });
                     });
                     
+                    // --- AUTO BRIDGE ELEVATION LOGIC (OPTIMIZED & SMOOTH) ---
+                    const applyBridgeElevations = () => {
+                        const stepCount = rails.lane1.length;
+                        const totalTrackLength = vertexDistances[vertexDistances.length - 1] || 1;
+                        const centerPoints = [];
+                        
+                        // 1. Generate center points for collision detection
+                        for(let i=0; i<stepCount; i++) {
+                            let p1 = rails.lane1[i];
+                            let p2 = rails.lane2[i];
+                            if(!p1 && !p2) { centerPoints.push(null); continue; }
+                            if(!p1) p1 = p2;
+                            if(!p2) p2 = p1;
+                            centerPoints.push(new THREE.Vector3().lerpVectors(p1, p2, 0.5));
+                        }
+                        
+                        const elevationProfile = new Float32Array(stepCount).fill(0);
+                        const BRIDGE_CLEARANCE = 9.5;
+                        const BRIDGE_THICKNESS = 1.5;
+                        const BRIDGE_TOP_H = BRIDGE_CLEARANCE + BRIDGE_THICKNESS; // approx 11.0 cm
+                        const RAMP_LENGTH = 160.0; // Very long ramp for smoothness
+                        const FLAT_TOP_LEN = 40.0; // Flat section at top
+                        const SEARCH_GAP = 200.0; // Ignore self-intersections of adjacent pieces
+                        
+                        const intersections = [];
+
+                        const getPieceAtIdx = (idx) => {
+                            const d = vertexDistances[idx];
+                            return pieceMapRef.current.find(p => d >= p.distStart && d < p.distEnd);
+                        };
+
+                        const isRotondaIdx = (idx) => {
+                            const piece = getPieceAtIdx(idx);
+                            return piece?.type === 'curve' && piece?.subtype === 'rotonda';
+                        };
+
+                        // 2. Detect Intersections
+                        // Skip every other point for speed
+                        for(let i=0; i<stepCount - 1; i+=2) {
+                            if(isRotondaIdx(i)) continue;
+                            const pieceI = getPieceAtIdx(i);
+                            // Don't elevate complex mechanical pieces if possible
+                            const isSpecialI = pieceI && ['crossing', 'digital_x', 'change_right', 'change_left', 'pit_parallel_double_x', 'chicane_entry', 'chicane_exit'].includes(pieceI.subtype);
+                            if(isSpecialI) continue;
+
+                            if(!centerPoints[i]) continue;
+                            
+                            // Look ahead far enough to avoid self-detection
+                            for(let j=i + 1; j<stepCount - 1; j+=2) {
+                                if(isRotondaIdx(j)) continue;
+                                const pieceJ = getPieceAtIdx(j);
+                                const isSpecialJ = pieceJ && ['crossing', 'digital_x', 'change_right', 'change_left', 'pit_parallel_double_x', 'chicane_entry', 'chicane_exit'].includes(pieceJ.subtype);
+                                if(isSpecialJ) continue;
+
+                                const d1 = vertexDistances[i];
+                                const d2 = vertexDistances[j];
+                                let travelDist = Math.abs(d2 - d1);
+                                if (travelDist > totalTrackLength / 2) travelDist = totalTrackLength - travelDist; // Handle loop wrap
+
+                                if(travelDist > SEARCH_GAP) {
+                                    if(!centerPoints[j]) continue;
+                                    
+                                    const dist2D = Math.sqrt((centerPoints[i].x - centerPoints[j].x)**2 + (centerPoints[i].z - centerPoints[j].z)**2);
+                                    
+                                    if(dist2D < 12.0) { // Collision radius
+                                        // Check angles to avoid parallel tracks (like pit lanes) triggering
+                                        const p1Next = centerPoints[i+1];
+                                        const p2Next = centerPoints[j+1];
+                                        if(p1Next && p2Next) {
+                                            const dx1 = p1Next.x - centerPoints[i].x;
+                                            const dz1 = p1Next.z - centerPoints[i].z;
+                                            const dx2 = p2Next.x - centerPoints[j].x;
+                                            const dz2 = p2Next.z - centerPoints[j].z;
+                                            const len1 = Math.sqrt(dx1*dx1 + dz1*dz1);
+                                            const len2 = Math.sqrt(dx2*dx2 + dz2*dz2);
+                                            if(len1 > 0 && len2 > 0) {
+                                                const dot = (dx1*dx2 + dz1*dz2) / (len1 * len2);
+                                                if(Math.abs(dot) > 0.85) continue; // Parallel, ignore
+                                            }
+                                        }
+
+                                        // Valid Intersection found. Decided who goes up.
+                                        const midX = (centerPoints[i].x + centerPoints[j].x) / 2;
+                                        const midZ = (centerPoints[i].z + centerPoints[j].z) / 2;
+                                        
+                                        // Avoid double-counting same intersection
+                                        const exists = intersections.some(c => {
+                                            const d = (midX - c.midX)**2 + (midZ - c.midZ)**2;
+                                            return d < (40 * 40);
+                                        });
+
+                                        if(!exists) {
+                                            // SMART STRATEGY: 
+                                            // 1. Prefer straight over curve for bridge (stability)
+                                            // 2. Default to later piece (j) if both same type
+                                            let goesUpIdx = j;
+                                            const type1 = pieceI?.type || 'straight';
+                                            const type2 = pieceJ?.type || 'straight';
+                                            
+                                            if (type1 === 'straight' && type2 === 'curve') goesUpIdx = i;
+                                            else if (type1 === 'curve' && type2 === 'straight') goesUpIdx = j;
+                                            else goesUpIdx = j; 
+
+                                            intersections.push({ upperIdx: goesUpIdx, lowerIdx: (goesUpIdx === j ? i : j), midX, midZ });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. Generate Elevation Profile
+                        intersections.forEach(cross => {
+                            const centerDist = vertexDistances[cross.upperIdx];
+                            
+                            for (let k = 0; k < stepCount; k++) {
+                                const currentDist = vertexDistances[k];
+                                let distToCenter = Math.abs(currentDist - centerDist);
+                                // Handle Wrap-around logic
+                                if (distToCenter > totalTrackLength / 2) distToCenter = totalTrackLength - distToCenter;
+                                
+                                if (distToCenter < (FLAT_TOP_LEN/2 + RAMP_LENGTH)) {
+                                    let h = 0;
+                                    if (distToCenter <= FLAT_TOP_LEN / 2) {
+                                        h = BRIDGE_TOP_H;
+                                    } else {
+                                        const rampPos = (distToCenter - FLAT_TOP_LEN/2) / RAMP_LENGTH;
+                                        // CUBIC EASING for maximum smoothness
+                                        // 0 at top, 1 at bottom
+                                        if (rampPos >= 0 && rampPos <= 1) {
+                                            const smoothFactor = (rampPos * rampPos * (3 - 2 * rampPos)); 
+                                            h = BRIDGE_TOP_H * (1 - smoothFactor);
+                                        }
+                                    }
+                                    // Combine multiple bridges smoothly (take max)
+                                    elevationProfile[k] = Math.max(elevationProfile[k], h);
+                                }
+                            }
+                        });
+
+                        // 4. Force Flat Zones
+                        for (let k = 0; k < stepCount; k++) {
+                            const piece = getPieceAtIdx(k);
+                            if (piece) {
+                                const mustBeFlat = [ 'crossing', 'digital_x', 'change_right', 'change_left', 'pit_parallel_double_x', 'pit_entry', 'pit_exit', 'digital_console', 'connection', 'starting_grid', 'chicane_entry', 'chicane_exit' ].includes(piece.subtype);
+                                if (mustBeFlat) {
+                                    elevationProfile[k] = 0;
+                                }
+                            }
+                        }
+
+                        // 5. Apply Elevation to Geometry
+                        for(let i=0; i<stepCount; i++) {
+                            const y = elevationProfile[i];
+                            if(y <= 0.001) continue;
+                            
+                            if(rails.lane1[i]) rails.lane1[i].y += y;
+                            if(rails.lane2[i]) rails.lane2[i].y += y;
+                            if(rails.pit[i]) rails.pit[i].y += y;
+                            
+                            // Elevate Asphalt
+                            const vertIdx = i * 6;
+                            if((vertIdx + 5) < asphaltVerts.length) {
+                                asphaltVerts[vertIdx + 1] += y; // Y izquierdo
+                                asphaltVerts[vertIdx + 4] += y; // Y derecho
+                            }
+                        }
+                        
+                        // 6. Elevate Lane Change Objects
+                        rails.changes.forEach(changeItem => {
+                            const { points, refIdx, count } = changeItem;
+                            // Search a bit wider to find closest rail point
+                            const startI = Math.max(0, refIdx - 5);
+                            const endI = Math.min(stepCount, refIdx + count + 5);
+                            
+                            points.forEach(pt => {
+                                 let bestH = 0;
+                                 let minDist = Infinity;
+                                 for(let i = startI; i < endI; i++) {
+                                     const r = rails.lane1[i] || rails.lane2[i];
+                                     if (!r) continue;
+                                     const d = (pt.x - r.x)**2 + (pt.z - r.z)**2;
+                                     if(d < minDist) { minDist = d; bestH = r.y; }
+                                 }
+                                 if(minDist < 50 && bestH > 0.001) {
+                                     pt.y = bestH;
+                                 }
+                            });
+                        });
+                    };
+                    
+                    applyBridgeElevations();
+
                     let finalRallyPath = []; let rallyDists = [0]; let currentRallyDist = 0;
                     if (hasRotonda) {
                         const rotondas = rails.changes.filter(c => c.isRotonda).sort((a, b) => a.refIdx - b.refIdx);
@@ -711,14 +1146,27 @@
                             const lineTex = new THREE.CanvasTexture(lineCanvas);
                             const lineM = new THREE.MeshStandardMaterial({ map: lineTex, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1 });
                             const lineMesh = new THREE.Mesh(lineG, lineM);
-                            lineMesh.position.set(mid.x, 0.02, mid.z);
-                            const lookAtPos = mid.clone().add(tangent); lookAtPos.y = 0.02; lineMesh.lookAt(lookAtPos);
+                            lineMesh.position.set(mid.x, mid.y + 0.02, mid.z); // Added mid.y to respect bridge elevation
+                            const lookAtPos = mid.clone().add(tangent); lookAtPos.y = mid.y + 0.02; lineMesh.lookAt(lookAtPos);
                             trackGroup.add(lineMesh);
                         }
                     }
 
                     const b = new THREE.Box3().setFromObject(trackGroup); if (!b.isEmpty()) { const center = b.getCenter(new THREE.Vector3()); trackGroup.position.sub(center); trackGroup.position.y = 0; } scene.add(trackGroup);
-                    if (rails.lane1.length > 2) { physicsState.current.forEach((car) => { const s = carSetupsRef.current[car.id]; if (!s) return; const cc = parseInt(s.color.replace('#','0x')); const c = createCar(car.id, cc); trackGroup.add(c); carMeshes.push(c); }); }
+                    carMeshesRef.current = [];
+                    if (rails.lane1.length > 2) { 
+                        physicsState.current.forEach((car) => { 
+                            const s = carSetupsRef.current[car.id]; 
+                            if (!s) return; 
+                            const cc = parseInt(s.color.replace('#','0x')); 
+                            const c = createCar(car.id, cc); 
+                            // IMPORTANTE: Añadir metadata para identificar el coche
+                            c.userData = { id: car.id };
+                            trackGroup.add(c); 
+                            carMeshes.push(c); 
+                            carMeshesRef.current.push(c);
+                        }); 
+                    }
                     const getPositionAtDistance = (pa, d) => { let i = 0, min = 0, max = vertexDistances.length - 1; while (min <= max) { let mid = Math.floor((min + max) / 2); if (vertexDistances[mid] <= d) { i = mid; min = mid + 1; } else { max = mid - 1; } } if (i >= vertexDistances.length - 1) i = vertexDistances.length - 2; const r = (d - vertexDistances[i]) / (vertexDistances[i+1] - vertexDistances[i]); if (!pa[i] || !pa[i+1]) return pa[i] || pa[i+1]; return new THREE.Vector3().lerpVectors(pa[i], pa[i+1], r); };
                     const getRallyPositionByDist = (dist) => { const path = rallyPathRef.current; const dists = rallyDistancesRef.current; if (!path || path.length < 2 || dists.length < 2) return new THREE.Vector3(); const totalLen = dists[dists.length - 1]; let safeDist = dist; if (safeDist < 0) safeDist += totalLen; safeDist = safeDist % totalLen; let idx = 0; let min = 0, max = dists.length - 1; while (min <= max) { let mid = Math.floor((min + max) / 2); if (dists[mid] <= safeDist) { idx = mid; min = mid + 1; } else { max = mid - 1; } } if (idx >= dists.length - 1) idx = dists.length - 2; const dStart = dists[idx]; const dEnd = dists[idx+1]; const segmentLen = dEnd - dStart; const ratio = segmentLen > 0.00001 ? (safeDist - dStart) / segmentLen : 0; const p1 = path[idx]; const p2 = path[idx+1]; return new THREE.Vector3().lerpVectors(p1, p2, ratio); };
 
@@ -769,7 +1217,7 @@
                                 }
                                 if (car.isRefueling) {
                                     car.speed = 0; ts = 0; car.fuel = Math.min(100, car.fuel + (dt * 35));
-                                    if (nowTime - car.refuelStartTime >= 3000) { car.isRefueling = false; car.hasRefueledThisLap = true; car.wantsToPit = false; } else { pg.position.y = 0.2 + Math.sin(nowTime * 0.05) * 0.02; return; }
+                                    if (nowTime - car.refuelStartTime >= 3000) { car.isRefueling = false; car.hasRefueledThisLap = true; car.wantsToPit = false; } else { pg.position.y = (car.worldPos.y || 0.2) + Math.sin(nowTime * 0.05) * 0.02; return; }
                                 }
                                 if (cp && cp.type === 'pit_exit') { car.hasRefueledThisLap = false; if (car.id === selectedCarIdRef.current) car.wantsToPit = false; }
                                 if (car.isDerailled) { car.velocity.y -= 9.8 * dt * 5; car.worldPos.add(car.velocity.clone().multiplyScalar(dt)); if (car.worldPos.y < 0.5) { car.worldPos.y = 0.5; car.velocity.y *= -0.5; car.velocity.x *= 0.8; car.velocity.z *= 0.8; } pg.position.copy(car.worldPos); pg.rotation.x += car.velocity.z*dt*0.1; pg.rotation.z -= car.velocity.x*dt*0.1; if (nowTime > car.recoverTime) { car.isDerailled = false; car.speed = 0; car.invulnerableUntil = nowTime + 3000; pg.rotation.set(0,0,0); pg.position.y = 0.2; if (car.id <= numCarsRef.current) vg.visible = true; } return; }
@@ -842,7 +1290,7 @@
                                     const glvf = (l) => l===LANE_PIT?fpit:(l===LANE_2?fl2:fl1);
                                     const flook = new THREE.Vector3().lerpVectors(glvf(car.currentLane), glvf(car.targetLane), mf_look);
                                     const tan = new THREE.Vector3().subVectors(flook, fpos).normalize(); 
-                                    car.worldPos.copy(fpos); pg.position.copy(fpos).add(new THREE.Vector3(0, 0.2, 0)); pg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan);
+                                    car.worldPos.copy(fpos); pg.position.copy(fpos).add(new THREE.Vector3(0, -0.32, 0)); pg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan);
                                     
                                     if (cp) {
                                         if (car.lastPieceIndex !== cp.index) { 
@@ -915,52 +1363,102 @@
                 init3D(); 
                 return () => { window.removeEventListener('resize', onResize); if(renderer){ renderer.domElement.removeEventListener('mousedown', onMouseDown); if(animationId) cancelAnimationFrame(animationId); renderer.dispose(); } };
             }, [circuitData]); 
+            
+            // --- NUEVO EFFECT: CARGA DE MODELOS 3D CUANDO CAMBIA customCarAssets ---
+            useEffect(() => {
+                if(!customCarAssets || carMeshesRef.current.length === 0) return;
+                
+                Object.entries(customCarAssets).forEach(([carId, asset]) => {
+                    if (asset && asset.glb) {
+                        const targetId = parseInt(carId);
+                        const carGroup = carMeshesRef.current.find(c => c.userData.id === targetId);
+                        
+                        if (carGroup && carGroup.children && carGroup.children.length > 0) {
+                            const loader = new THREE.GLTFLoader();
+                            // Optional: Draco support if needed
+                            if (typeof THREE.DRACOLoader !== 'undefined') {
+                                const dracoLoader = new THREE.DRACOLoader();
+                                dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+                                loader.setDRACOLoader(dracoLoader);
+                            }
+                            
+                            loader.load(asset.glb, (gltf) => {
+                                const model = gltf.scene;
+                                const vg = carGroup.children[0]; // Visual Group is usually 1st child
+                                
+                                // Limpiar mesh anterior (la caja por defecto)
+                                while(vg.children.length > 0){ 
+                                    vg.remove(vg.children[0]); 
+                                }
+                                
+                                // Normalizar escala y posición (igual que en HOMO viewer)
+                                const box = new THREE.Box3().setFromObject(model);
+                                const size = box.getSize(new THREE.Vector3());
+                                const center = box.getCenter(new THREE.Vector3());
+
+                                // Centrar
+                                model.position.x -= center.x;
+                                model.position.y -= center.y;
+                                model.position.z -= center.z;
+
+                                // --- CORRECCIÓN DE ESCALA 1:32 ---
+                                // Pista Ninco = 18 unidades = 180mm. 
+                                // Coche GT/LMP 1:32 ~ 135-145mm.
+                                // Usamos 13.5 unidades como referencia de longitud para un coche estándar.
+                                // También limitamos el ancho para que no se salga del carril (spacing = 9.0).
+                                const targetLength = 13.2; 
+                                const maxAllowedWidth = 6.5; 
+                                
+                                const originalLength = Math.max(size.z, size.x); // Asumimos que el largo es la dimensión mayor
+                                const originalWidth = Math.min(size.z, size.x);  // Y el ancho la menor en el plano XZ
+
+                                let scale = targetLength / originalLength;
+                                
+                                // Verificar si con esa escala el ancho es demasiado grande
+                                if ((originalWidth * scale) > maxAllowedWidth) {
+                                    scale = maxAllowedWidth / originalWidth;
+                                }
+                                
+                                model.scale.set(scale, scale, scale);
+                                
+                                // Ajustar altura para que las ruedas toquen la pista
+                                // El grupo visual 'vg' suele estar a y=0 local, que es y=0.2 global (+ elevación puente)
+                                // Movemos el modelo hacia arriba la mitad de su altura escalada
+                                model.position.y += (size.y * scale) / 2;
+
+                                // Rotar 180º por defecto (la mayoría de GLB miran a +Z, pero en slot a veces es al revés)
+                                model.rotation.y = Math.PI;
+
+                                // Sombras
+                                model.traverse(child => {
+                                    if (child.isMesh) {
+                                        child.castShadow = true;
+                                        child.receiveShadow = true;
+                                        // Asegurar materiales doble cara por si acaso
+                                        if (child.material) child.material.side = THREE.DoubleSide;
+                                    }
+                                });
+
+                                vg.add(model);
+                                console.log(`Coche ${targetId} actualizado con modelo 3D.`);
+                            }, undefined, (error) => {
+                                console.error(`Error cargando GLB para coche ${targetId}:`, error);
+                                // Opcional: Mostrar error visual
+                            });
+                        }
+                    }
+                });
+            }, [customCarAssets]); // Se ejecuta cuando cambian los assets
 
             return ( 
                 <div className="absolute inset-0 z-50 bg-[#3b5f7d] text-white font-sans overflow-hidden animate-in"> 
+                    {/* Contenedor 3D */}
                     <div ref={containerRef} className="absolute inset-0 w-full h-full" /> 
-                    {validationError && (
-                        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-600/90 text-white px-6 py-4 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.6)] flex items-center gap-4 z-[100] animate-in backdrop-blur-md border border-red-400">
-                            <AlertTriangle size={32} className="animate-bounce"/>
-                            <div><h3 className="font-bold text-lg leading-tight">IMPOSIBLE INICIAR</h3><p className="text-sm opacity-90">{validationError}</p></div>
-                        </div>
-                    )}
+                    
+                    {/* Botón Fullscreen */}
                     <button onClick={toggleFullscreen} className="absolute top-6 right-6 z-[80] w-12 h-12 flex items-center justify-center rounded-lg bg-black/60 border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-black transition-all duration-300 backdrop-blur-md shadow-[0_0_15px_rgba(249,115,22,0.5)] pointer-events-auto group animate-pulse hover:animate-none">{isFullscreen ? <Minimize size={24}/> : <Maximize size={24}/>}</button>
-                    {activeButton === 'DIGITAL' && (
-                        <div className="absolute inset-0 pointer-events-none flex flex-col items-center pt-48 z-[60]">
-                            <div className="w-full flex flex-wrap justify-center gap-x-2 gap-y-2 px-4 mt-4 pointer-events-none perspective-1000">
-                                {telemetry.filter(t => t.id <= numCars).sort((a,b) => a.position - b.position).map((car) => {
-                                    const config = carSetups[car.id];
-                                    let gap = car.position === 1 ? "LIDER" : `+${Math.random().toFixed(1)}s`, fuelColor = car.fuel > 75 ? config.color : (car.fuel > 50 ? '#eab308' : (car.fuel > 25 ? '#f97316' : '#ef4444'));
-                                    return (
-                                        <div key={car.id} className="relative w-[170px] h-[130px] pointer-events-auto transition-all duration-500 ease-out" style={{order: car.position}}>
-                                            <div className={`absolute top-0 left-0 origin-top-left transform scale-[0.52] bg-[#050a05]/95 border-2 rounded-xl w-80 overflow-hidden backdrop-blur-xl animate-in transition-all duration-300 hover:scale-[0.55] hover:z-50 ${car.id === selectedCarId ? 'border-[#39ff14] shadow-[0_0_30px_rgba(57,255,20,0.2)]' : 'border-gray-700 opacity-90'}`} style={{borderColor: car.id === selectedCarId ? '#39ff14' : config.color}}>
-                                                <div className="px-4 py-1.5 flex justify-between items-center" style={{backgroundColor: car.id === selectedCarId ? '#39ff14' : '#1e293b'}}>
-                                                    <div className="flex items-center gap-2"><Zap size={14} className={car.id === selectedCarId ? "text-black animate-pulse" : "text-gray-400"}/><span className={`font-black text-[10px] tracking-[0.3em] uppercase ${car.id === selectedCarId ? 'text-black' : 'text-white'}`}>{config.name}</span></div>
-                                                    <span className={`px-2 rounded text-[9px] font-bold font-mono ${car.id === selectedCarId ? 'bg-black/20 text-black' : 'bg-black/40 text-gray-400'}`}>ID:{car.id}</span>
-                                                </div>
-                                                <div className="p-4 flex flex-col gap-3 relative">
-                                                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{backgroundImage: `linear-gradient(transparent 11px, ${config.color} 1px), linear-gradient(90deg, transparent 11px, ${config.color} 1px)`, backgroundSize: '12px 12px'}}></div>
-                                                    <div className="flex justify-between items-end border-b border-gray-700/50 pb-2 relative z-10">
-                                                        <div><span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest block mb-[-2px]">POSICIÓN</span><div className="flex items-baseline gap-1"><span className="font-digital text-6xl font-black text-white italic drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] leading-none">{car.position}</span></div></div>
-                                                        <div className="flex flex-col items-end"><span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest bg-black/40 px-1 rounded mb-1">GAP</span><span className={`font-mono text-2xl font-bold tracking-tight ${car.position === 1 ? 'text-[#39ff14]' : 'text-yellow-400'}`}>{gap}</span></div>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-2 relative z-10">
-                                                        <div className="bg-white/5 border border-white/10 rounded p-1.5 flex flex-col"><span className="text-[7px] text-gray-400 font-bold uppercase mb-0.5">VUELTA</span><span className="font-digital text-lg text-white tracking-wider">{formatRaceTime(car.currentLap || 0)}</span></div>
-                                                        <div className="bg-white/5 border border-white/10 rounded p-1.5 flex flex-col text-right"><span className="text-[7px] text-[#39ff14] font-bold uppercase mb-0.5">MEJOR</span><span className="font-digital text-lg text-[#39ff14] tracking-wider drop-shadow-[0_0_5px_rgba(57,255,20,0.5)]">{car.bestLap ? (car.bestLap/1000).toFixed(3) : '--.---'}</span></div>
-                                                    </div>
-                                                    <div className="relative z-10 pt-1">
-                                                        <div className="flex justify-between items-end mb-1"><div className="flex items-center gap-1 text-gray-400"><Fuel size={12} /><span className="text-[8px] font-black tracking-[0.2em] uppercase">FUEL</span></div><span className={`font-mono text-[10px] font-bold ${car.fuel < 25 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{Math.round(car.fuel)}%</span></div>
-                                                        <div className="h-4 w-full bg-gray-900 rounded border border-gray-600 relative overflow-hidden shadow-[inset_0_0_10px_rgba(0,0,0,1)]"><div className="h-full transition-all duration-300 ease-out" style={{width: `${car.fuel}%`, backgroundColor: fuelColor}}></div></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
+                    
+                    {/* DASHBOARD SUPERIOR */}
                     {activeButton === 'ANALOG' ? (
                         <AnalogDashboard telemetry={telemetry.slice(0,2)} carSetups={carSetups} raceState={raceState} activeLights={activeLights} elapsedTime={elapsedTime} targetLaps={targetLaps} />
                     ) : (
@@ -997,49 +1495,76 @@
                             </div>
                         </div>
                     )}
+
+                    {/* UI MODO PRACTICE (Con botón HOMO integrado) */}
                     {(activeButton === 'PRACTICE' || activeButton === 'ANALOG' || activeButton === 'DIGITAL') && (
-                        <div className="absolute right-8 bottom-36 z-[90] pointer-events-auto flex flex-col items-center">
-                            <div className="bg-[#0f172a]/95 backdrop-blur-xl border-2 border-gray-700 rounded-[2rem] p-3 shadow-[0_0_60px_rgba(0,0,0,0.8)] flex flex-col gap-3 w-[100px] relative">
-                                {activeButton === 'DIGITAL' && (
-                                    <>
-                                        <div className="w-full bg-black/60 rounded-xl p-1.5 border border-gray-800 flex justify-between items-center shadow-inner relative overflow-hidden relative z-30">
-                                            <button onClick={() => setSelectedCarId(prev => Math.max(1, prev - 1))} className="w-6 h-8 flex items-center justify-center bg-gray-800 rounded-lg text-gray-400"><ArrowLeft size={10}/></button>
-                                            <div className="flex flex-col items-center leading-none z-10"><span className="text-[6px] text-gray-500 font-bold">ID</span><span className="text-xl font-black text-[#39ff14] font-digital">{selectedCarId}</span></div>
-                                            <button onClick={() => setSelectedCarId(prev => Math.min(numCars, prev + 1))} className="w-6 h-8 flex items-center justify-center bg-gray-800 rounded-lg text-gray-400"><ArrowRight size={10}/></button>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-1.5 w-full relative z-30">
-                                            <button 
-                                                onPointerDown={(e) => { e.preventDefault(); setLaneChangePressed(true); }} 
-                                                onPointerUp={(e) => { e.preventDefault(); setLaneChangePressed(false); }} 
-                                                onPointerLeave={() => setLaneChangePressed(false)}
-                                                onContextMenu={(e) => e.preventDefault()}
-                                                className={`h-12 w-full rounded-xl flex items-center justify-center gap-2 border transition-all active:scale-95 touch-none select-none ${laneChangePressed?'bg-[#39ff14] text-black border-white shadow-[0_0_15px_#39ff14]':'bg-gray-800 text-gray-300 border-gray-600'}`}
-                                            >
-                                                <GitCommit size={20} className="rotate-90"/><span className="font-black text-[10px]">LC</span>
-                                            </button>
-                                            <button 
-                                                onPointerDown={(e) => { e.preventDefault(); setPitPressed(true); }} 
-                                                onPointerUp={(e) => { e.preventDefault(); setPitPressed(false); }}
-                                                onPointerLeave={() => setPitPressed(false)}
-                                                onContextMenu={(e) => e.preventDefault()}
-                                                className={`h-10 w-full rounded-xl flex items-center justify-center gap-2 border transition-all active:scale-95 touch-none select-none ${pitPressed?'bg-blue-600 text-white shadow-[0_0_15px_blue]':'bg-gray-800 text-gray-400 border-gray-600'}`}
-                                            >
-                                                <Fuel size={16}/><span className="font-bold text-[9px]">BOX</span>
-                                            </button>
-                                        </div>
-                                    </>
+                        <>
+                            {/* Panel Control Derecho Inferior */}
+                            <div className="absolute right-8 bottom-36 z-[90] pointer-events-auto flex flex-col items-center gap-3">
+                                
+                                {/* BOTÓN HOMO (Nuevo) */}
+                                {activeButton === 'PRACTICE' && (
+                                    <button 
+                                        onClick={() => setShowHomoViewer(!showHomoViewer)} 
+                                        className={`flex flex-col items-center justify-center w-20 h-20 bg-gray-900/90 border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg text-cyan-400 hover:bg-cyan-950/50 active:scale-95 active:shadow-none transition-all group ${showHomoViewer ? 'bg-cyan-900/50 border-cyan-400 text-white' : 'hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]'}`}
+                                    >
+                                        <User size={24} className="mb-1 group-hover:scale-110 transition-transform"/>
+                                        <span className="text-[9px] font-black tracking-widest">HOMO</span>
+                                    </button>
                                 )}
-                                <div className="relative w-full h-[240px] bg-black/50 rounded-xl overflow-hidden border border-gray-800 z-10">
-                                    <div className="absolute bottom-0 left-0 w-full" style={{ height: `${manualThrottle}%`, background: `linear-gradient(to top, ${manualThrottle>90?'#ef4444':'#39ff14'} 0%, transparent 100%)`, boxShadow: `0 0 20px ${manualThrottle>90?'#ef4444':'#39ff14'}` }}></div>
-                                    <input type="range" min="0" max="100" value={manualThrottle} onChange={(e)=>setManualThrottle(parseFloat(e.target.value))} className="absolute -bottom-[85px] -left-[90px] w-[280px] h-[240px] opacity-0 cursor-pointer z-20" style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}/>
-                                    <div className="absolute top-2 left-0 w-full text-center pointer-events-none"><span className="font-digital text-xl font-black">{Math.round(manualThrottle)}</span><span className="text-[6px] block text-gray-500 font-bold uppercase">GAS</span></div>
+
+                                {/* VISOR HOMO (Flotante) */}
+                                {showHomoViewer && ( 
+                                    <div className="absolute right-24 bottom-0 pointer-events-auto animate-in slide-in-right duration-300">
+                                        <GLBViewer 
+                                            onClose={() => setShowHomoViewer(false)} 
+                                            onLoad={handleModelAssign} 
+                                            onRotationToggle={handleCarRotation} 
+                                        />
+                                    </div> 
+                                )}
+
+                                <div className="bg-[#0f172a]/95 backdrop-blur-xl border-2 border-gray-700 rounded-[2rem] p-3 shadow-[0_0_60px_rgba(0,0,0,0.8)] flex flex-col gap-3 w-[100px] relative">
+                                    {/* Controles Digitales (LC/BOX) si aplica */}
+                                    {activeButton === 'DIGITAL' && (
+                                        <>
+                                            <div className="w-full bg-black/60 rounded-xl p-1.5 border border-gray-800 flex justify-between items-center shadow-inner relative overflow-hidden relative z-30">
+                                                <button onClick={() => setSelectedCarId(prev => Math.max(1, prev - 1))} className="w-6 h-8 flex items-center justify-center bg-gray-800 rounded-lg text-gray-400"><ArrowLeft size={10}/></button>
+                                                <div className="flex flex-col items-center leading-none z-10"><span className="text-[6px] text-gray-500 font-bold">ID</span><span className="text-xl font-black text-[#39ff14] font-digital">{selectedCarId}</span></div>
+                                                <button onClick={() => setSelectedCarId(prev => Math.min(numCars, prev + 1))} className="w-6 h-8 flex items-center justify-center bg-gray-800 rounded-lg text-gray-400"><ArrowRight size={10}/></button>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-1.5 w-full relative z-30">
+                                                <button 
+                                                    onPointerDown={(e) => { e.preventDefault(); setLaneChangePressed(true); }} 
+                                                    onPointerUp={(e) => { e.preventDefault(); setLaneChangePressed(false); }} 
+                                                    onPointerLeave={() => setLaneChangePressed(false)}
+                                                    className={`h-12 w-full rounded-xl flex items-center justify-center gap-2 border transition-all active:scale-95 touch-none select-none ${laneChangePressed?'bg-[#39ff14] text-black border-white shadow-[0_0_15px_#39ff14]':'bg-gray-800 text-gray-300 border-gray-600'}`}
+                                                >
+                                                    <GitCommit size={20} className="rotate-90"/><span className="font-black text-[10px]">LC</span>
+                                                </button>
+                                                <button 
+                                                    onPointerDown={(e) => { e.preventDefault(); setPitPressed(true); }} 
+                                                    onPointerUp={(e) => { e.preventDefault(); setPitPressed(false); }}
+                                                    onPointerLeave={() => setPitPressed(false)}
+                                                    className={`h-10 w-full rounded-xl flex items-center justify-center gap-2 border transition-all active:scale-95 touch-none select-none ${pitPressed?'bg-blue-600 text-white shadow-[0_0_15px_blue]':'bg-gray-800 text-gray-400 border-gray-600'}`}
+                                                >
+                                                    <Fuel size={16}/><span className="font-bold text-[9px]">BOX</span>
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                    
+                                    {/* Acelerador Manual */}
+                                    <div className="relative w-full h-[240px] bg-black/50 rounded-xl overflow-hidden border border-gray-800 z-10">
+                                        <div className="absolute bottom-0 left-0 w-full" style={{ height: `${manualThrottle}%`, background: `linear-gradient(to top, ${manualThrottle>90?'#ef4444':'#39ff14'} 0%, transparent 100%)`, boxShadow: `0 0 20px ${manualThrottle>90?'#ef4444':'#39ff14'}` }}></div>
+                                        <input type="range" min="0" max="100" value={manualThrottle} onChange={(e)=>setManualThrottle(parseFloat(e.target.value))} className="absolute -bottom-[85px] -left-[90px] w-[280px] h-[240px] opacity-0 cursor-pointer z-20" style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}/>
+                                        <div className="absolute top-2 left-0 w-full text-center pointer-events-none"><span className="font-digital text-xl font-black">{Math.round(manualThrottle)}</span><span className="text-[6px] block text-gray-500 font-bold uppercase">GAS</span></div>
+                                    </div>
                                 </div>
-                                {activeButton === 'DIGITAL' && (
-                                    <button onClick={() => setAutoLaneChange(!autoLaneChange)} className={`w-full py-1.5 rounded-lg text-[8px] font-bold transition-all border relative z-30 ${autoLaneChange?'bg-purple-900/40 border-purple-500 text-purple-300':'bg-transparent border-transparent text-gray-600'}`}>{autoLaneChange ? 'AI ASIST' : 'MANUAL'}</button>
-                                )}
                             </div>
-                        </div>
+                        </>
                     )}
+
                     {activeButton === 'GRID' && (
                         <div className="absolute top-60 left-1/2 transform -translate-x-1/2 scale-[0.85] origin-top z-[60] flex flex-col items-center gap-4 pointer-events-auto bg-black/40 p-6 rounded-3xl border border-white/5 backdrop-blur-md shadow-2xl">
                             <div className="flex gap-4 items-start">
@@ -1053,6 +1578,94 @@
                     {activeButton !== 'ANALOG' && activeButton !== 'DIGITAL' && (
                         <div className="absolute bottom-28 left-6 pointer-events-auto z-[60]"><TelemetryPanel carId={selectedCarId} data={telemetry.find(t => t.id === selectedCarId)} config={carSetups[selectedCarId]} /></div>
                     )}
+                    
+                    {/* PANELES DE TELEMETRÍA MODO DIGITAL (MULTIPLAYER - REDISEÑADO COMPACTO) */}
+                    {activeButton === 'DIGITAL' && (
+                        <div className="absolute top-[210px] left-1/2 transform -translate-x-1/2 z-[60] flex flex-wrap justify-center gap-2 pointer-events-none w-full max-w-6xl px-4">
+                            {telemetry.filter(t => t.id <= numCars).map(t => {
+                                const isSelected = selectedCarId === t.id;
+                                const setup = carSetups[t.id];
+                                const fuelColor = t.fuel > 50 ? (isSelected ? '#39ff14' : '#22c55e') : t.fuel > 20 ? '#eab308' : '#ef4444';
+                                const rpmPercent = Math.min(100, (t.speed / 300) * 90 + Math.random()*10);
+
+                                return (
+                                    <div 
+                                        key={t.id} 
+                                        onClick={() => setSelectedCarId(t.id)} 
+                                        className={`pointer-events-auto w-40 bg-[#050a05]/95 border-2 rounded-lg overflow-hidden backdrop-blur-xl transition-all duration-200 cursor-pointer group relative
+                                        ${isSelected ? 'border-[#39ff14] shadow-[0_0_20px_rgba(57,255,20,0.3)] z-20 scale-105' : 'border-gray-800 hover:border-gray-500 opacity-80 hover:opacity-100 hover:-translate-y-1'}`}
+                                    >
+                                        {/* Header estilo TelemetryPanel */}
+                                        <div className={`${isSelected ? 'bg-[#39ff14] text-black' : 'bg-gray-900 text-gray-400 border-b border-gray-800'} px-2 py-1 flex justify-between items-center transition-colors`}>
+                                            <div className="flex items-center gap-1.5">
+                                                {isSelected && <Activity size={10} className="animate-pulse"/>}
+                                                <span className="font-black text-[8px] tracking-widest uppercase truncate max-w-[80px]">{setup.name}</span>
+                                            </div>
+                                            <span className={`font-mono font-bold text-[8px] px-1 py-0 rounded ${isSelected ? 'bg-black/20' : 'bg-black/40 border border-gray-700'}`}>P{t.position}</span>
+                                        </div>
+
+                                        {/* Cuerpo con rejilla de fondo */}
+                                        <div className="p-2 relative">
+                                            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{backgroundImage: `linear-gradient(transparent 9px, ${isSelected ? '#39ff14' : '#666'} 1px), linear-gradient(90deg, transparent 9px, ${isSelected ? '#39ff14' : '#666'} 1px)`, backgroundSize: '15px 15px'}}></div>
+                                            
+                                            {/* Velocidad y RPM */}
+                                            <div className="flex justify-between items-end mb-1.5 border-b border-gray-700/50 pb-1.5 relative z-10">
+                                                <div>
+                                                    <span className="text-[6px] text-gray-500 font-bold uppercase block tracking-wider">VELOCIDAD</span>
+                                                    <div className="flex items-baseline gap-0.5">
+                                                        <span className={`font-digital text-xl leading-none ${isSelected ? 'text-white drop-shadow-[0_0_5px_rgba(57,255,20,0.8)]' : 'text-gray-300'}`}>{t.speed}</span>
+                                                        <span className="text-[6px] text-gray-500 font-bold">Km/h</span>
+                                                    </div>
+                                                </div>
+                                                <div className="w-12 flex flex-col items-end">
+                                                    <div className={`w-full h-1 rounded-full overflow-hidden border ${isSelected ? 'border-[#39ff14]/30' : 'border-gray-700'}`}>
+                                                        <div className={`h-full transition-all duration-75 ${isSelected ? 'bg-gradient-to-r from-[#39ff14]/40 via-[#39ff14] to-white' : 'bg-gray-500'}`} style={{width: `${rpmPercent}%`}}></div>
+                                                    </div>
+                                                    <span className={`text-[6px] font-mono mt-0.5 ${isSelected ? 'text-[#39ff14]' : 'text-gray-500'}`}>RPM</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Fuel */}
+                                            <div className="mb-1.5 relative z-10">
+                                                <div className="flex justify-between text-[6px] font-bold text-gray-400 mb-0.5">
+                                                    <span className="tracking-wider">FUEL</span>
+                                                    <span style={{color: fuelColor}}>{Math.round(t.fuel)}%</span>
+                                                </div>
+                                                <div className="w-full h-1.5 bg-gray-900 rounded-sm overflow-hidden border border-gray-700 relative">
+                                                    <div className="absolute inset-0 flex justify-between px-1 pointer-events-none z-20">
+                                                        <div className="w-px h-full bg-black/50"></div>
+                                                        <div className="w-px h-full bg-black/50"></div>
+                                                        <div className="w-px h-full bg-black/50"></div>
+                                                    </div>
+                                                    <div 
+                                                        className="h-full transition-all duration-300 relative z-10" 
+                                                        style={{
+                                                            width: `${t.fuel}%`, 
+                                                            backgroundColor: fuelColor,
+                                                            boxShadow: isSelected ? `0 0 8px ${fuelColor}` : 'none'
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+
+                                            {/* Tiempos de Vuelta */}
+                                            <div className="grid grid-cols-2 gap-1 text-[7px] relative z-10 bg-black/20 p-1 rounded border border-white/5">
+                                                <div>
+                                                    <span className="text-gray-500 block uppercase font-bold tracking-wider">VUELTA {t.laps}</span>
+                                                    <span className="font-mono text-gray-300 font-bold">{t.lastLap > 0 ? (t.lastLap/1000).toFixed(2) : '--.--'}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className={`${isSelected ? 'text-[#39ff14]/80' : 'text-gray-500'} block uppercase font-bold tracking-wider`}>MEJOR</span>
+                                                    <span className={`font-mono font-bold ${isSelected ? 'text-[#39ff14]' : 'text-gray-300'}`}>{t.bestLap > 0 && t.bestLap !== Infinity ? (t.bestLap/1000).toFixed(2) : '--.--'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     {raceState === 'finished' && winnerId && (
                         <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl animate-in p-6 overflow-auto">
                             {activeButton === 'DIGITAL' && sessionResults ? (
@@ -1228,7 +1841,18 @@
         function Slot3DPlayer() {
           const [circuitData, setCircuitData] = useState(null);
           const [carSettings, setCarSettings] = useState(Array(8).fill(null).map((_, i) => ({ id: i + 1, name: `PILOTO ${i + 1}`, color: ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7', '#ec4899', '#f97316', '#64748b'][i % 8] })));
-          const [customCarAssets] = useState(Object.fromEntries(Array.from({length: 8}, (_, i) => [i + 1, { obj: null, rotation: [0, 180, 0], yOffset: 0 }])));
+          const [customCarAssets, setCustomCarAssets] = useState(Object.fromEntries(Array.from({length: 8}, (_, i) => [i + 1, { obj: null, rotation: [0, 180, 0], yOffset: 0 }])));
+
+          const handleCarAssetUpdate = (file, targetId) => {
+              if (file && targetId) {
+                  const url = URL.createObjectURL(file);
+                  setCustomCarAssets(prev => ({
+                      ...prev,
+                      [targetId]: { ...prev[targetId], glb: url, glbName: file.name }
+                  }));
+                  console.log(`Modelo asignado a coche ${targetId}`);
+              }
+          };
 
           useEffect(() => { const ls = document.getElementById('loading-screen'); if (ls) { ls.style.opacity = '0'; setTimeout(() => ls.style.display = 'none', 1000); } }, []);
 
@@ -1254,6 +1878,7 @@
                     circuitData={circuitData} 
                     carSettings={carSettings} 
                     customCarAssets={customCarAssets} 
+                    onCarAssetUpdate={handleCarAssetUpdate}
                     onClose={() => setCircuitData(null)} 
                 />
             );
