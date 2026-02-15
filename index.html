@@ -36,7 +36,6 @@
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
             outline: none;
         }
-        /* Animaciones simples */
         .fade-in {
             animation: fadeIn 0.5s ease-in-out;
         }
@@ -70,11 +69,11 @@
     <!-- Contenedor Principal -->
     <main class="flex-grow container mx-auto p-4 flex items-center justify-center relative">
         
-        <!-- VISTA 1: Login Simple -->
+        <!-- VISTA: Login Único -->
         <div id="view-login" class="w-full max-w-md glass-panel p-8 rounded-2xl shadow-2xl fade-in relative z-10">
             <div class="text-center mb-8">
                 <h1 class="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Identificación</h1>
-                <p class="text-gray-400 text-sm">Ingresa tus credenciales</p>
+                <p class="text-gray-400 text-sm">Ingresa tus credenciales para ser redirigido</p>
             </div>
 
             <!-- Mensaje de error oculto -->
@@ -107,92 +106,24 @@
 
                 <button type="submit" 
                     class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform transition hover:-translate-y-1 active:translate-y-0">
-                    Iniciar Sesión
+                    Acceder
                 </button>
             </form>
 
-            <!-- Botones de Ayuda (Para no tener que escribir) -->
+            <!-- Botones de Ayuda (Para pruebas rápidas) -->
             <div class="mt-8 pt-6 border-t border-gray-700/50">
-                <p class="text-xs text-gray-400 mb-4 text-center">Accesos Rápidos (Demo)</p>
+                <p class="text-xs text-gray-400 mb-4 text-center">Accesos Rápidos</p>
                 <div class="grid grid-cols-2 gap-4">
                     <button type="button" onclick="fillCredentials('krono')" 
                         class="text-xs bg-slate-800 hover:bg-slate-700 text-blue-300 py-2 rounded border border-slate-600 transition">
-                        Opción A: Krono 2<br>
+                        Krono 2 (krono2.html)<br>
                         <span class="text-[10px] text-gray-500">(1234)</span>
                     </button>
                     
                     <button type="button" onclick="fillCredentials('dual')" 
                         class="text-xs bg-slate-800 hover:bg-slate-700 text-orange-300 py-2 rounded border border-slate-600 transition">
-                        Opción B: Dual<br>
+                        Krono Dual (kronodual2.html)<br>
                         <span class="text-[10px] text-gray-500">(5678)</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- VISTA 2: KRONO 2 (Interfaz Azul) -->
-        <div id="view-krono2" class="hidden w-full max-w-4xl fade-in">
-            <div class="glass-panel rounded-2xl overflow-hidden border-blue-500/30 border">
-                <div class="bg-blue-900/30 p-6 border-b border-blue-500/20 flex justify-between items-center">
-                    <div>
-                        <h2 class="text-2xl text-blue-400 font-bold tracking-wider">KRONO 2.0</h2>
-                        <span class="text-xs text-blue-200 uppercase tracking-widest">Panel Estándar</span>
-                    </div>
-                    <div class="h-8 w-8 rounded-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-pulse"></div>
-                </div>
-                
-                <div class="p-8">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="col-span-2 space-y-4">
-                            <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-                                <h3 class="text-lg font-bold mb-2">Resumen</h3>
-                                <p class="text-sm text-gray-300">Bienvenido al sistema estándar. Aquí puedes gestionar las tareas básicas.</p>
-                            </div>
-                        </div>
-                        <div class="bg-blue-900/10 p-4 rounded-lg border border-blue-500/20">
-                            <h3 class="text-blue-300 font-bold mb-2">Usuario</h3>
-                            <p id="krono2-user-display" class="text-sm text-gray-300 break-all"></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-4 bg-slate-900/50 text-right">
-                    <button onclick="logout()" class="text-sm text-red-400 hover:text-red-300 underline">Salir</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- VISTA 3: KRONO DUAL 2 (Interfaz Naranja/Roja) -->
-        <div id="view-kronodual2" class="hidden w-full max-w-5xl fade-in">
-            <div class="glass-panel rounded-2xl overflow-hidden border-orange-500/30 border">
-                <div class="bg-gradient-to-r from-orange-900/40 to-red-900/40 p-6 border-b border-orange-500/20 flex justify-between items-center">
-                    <div>
-                        <h2 class="text-3xl text-orange-400 font-bold tracking-wider">KRONO <span class="text-white">DUAL</span> II</h2>
-                        <span class="text-xs text-orange-200 uppercase tracking-widest">Modo Administrador</span>
-                    </div>
-                    <div class="flex gap-2">
-                        <div class="h-3 w-3 bg-orange-500 rounded-full"></div>
-                        <div class="h-3 w-3 bg-red-500 rounded-full"></div>
-                    </div>
-                </div>
-                
-                <div class="p-8 relative">
-                    <div class="absolute top-0 right-0 w-64 h-64 bg-orange-600/10 rounded-full blur-3xl -z-10"></div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <!-- Panel A -->
-                        <div class="border border-orange-500/30 rounded-xl p-6 bg-slate-900/60">
-                            <h3 class="text-xl text-orange-400 font-bold mb-4">Sistema Alpha</h3>
-                            <p class="text-sm text-gray-400">Control de núcleo primario activado.</p>
-                        </div>
-                        <!-- Panel B -->
-                        <div class="border border-red-500/30 rounded-xl p-6 bg-slate-900/60">
-                            <h3 class="text-xl text-red-400 font-bold mb-4">Sistema Beta</h3>
-                            <p class="text-sm text-gray-400">Red de seguridad secundaria en línea.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-4 bg-black/40 text-center border-t border-orange-500/20">
-                    <button onclick="logout()" class="px-6 py-2 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-white transition uppercase text-xs tracking-widest">
-                        Cerrar Sesión Dual
                     </button>
                 </div>
             </div>
@@ -205,13 +136,15 @@
     </footer>
 
     <script>
-        // Credenciales harcodeadas para la demo
+        // Credenciales: 
+        // 1. krono@test.com / 1234 -> Redirige a krono2.html
+        // 2. dual@test.com  / 5678 -> Redirige a kronodual2.html
+        
         const CREDENTIALS = {
             KRONO2: { user: 'krono@test.com', pass: '1234' },
             DUAL:   { user: 'dual@test.com',  pass: '5678' }
         };
 
-        // Función para rellenar automáticamente (para pruebas)
         function fillCredentials(type) {
             const emailInput = document.getElementById('email');
             const passInput = document.getElementById('password');
@@ -225,63 +158,39 @@
             }
         }
 
-        // Manejo del Login
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const email = document.getElementById('email').value.toLowerCase();
             const password = document.getElementById('password').value;
             const errorMsg = document.getElementById('error-message');
+            const btn = this.querySelector('button[type="submit"]');
 
             // Resetear estados
             errorMsg.classList.add('hidden');
             
-            // Lógica estricta
+            // Lógica de Redirección Simple
             if (email === CREDENTIALS.KRONO2.user && password === CREDENTIALS.KRONO2.pass) {
-                // EXITO CASO 1: Krono 2
-                launchView('view-krono2', email, "Krono 2 | Estándar");
+                // Éxito: Redirigir a Krono 2
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Cargando Krono 2...';
+                setTimeout(() => {
+                    window.location.href = 'krono2.html';
+                }, 500); // Pequeño delay para feedback visual
             } 
             else if (email === CREDENTIALS.DUAL.user && password === CREDENTIALS.DUAL.pass) {
-                // EXITO CASO 2: Krono Dual
-                launchView('view-kronodual2', email, "Krono Dual | Avanzado");
+                // Éxito: Redirigir a Krono Dual
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Cargando Sistema Dual...';
+                setTimeout(() => {
+                    window.location.href = 'kronodual2.html';
+                }, 500);
             } 
             else {
-                // ERROR
+                // Error
                 errorMsg.classList.remove('hidden');
                 errorMsg.classList.add('error-msg');
                 setTimeout(() => errorMsg.classList.remove('error-msg'), 500);
             }
         });
-
-        function launchView(viewId, userEmail, title) {
-            // Ocultar login
-            document.getElementById('view-login').classList.add('hidden');
-            
-            // Mostrar vista objetivo
-            document.getElementById(viewId).classList.remove('hidden');
-            
-            // Actualizar UI
-            document.getElementById('status-indicator').innerText = "CONECTADO: " + userEmail;
-            document.title = title;
-            
-            // Si es krono2, actualizamos el nombre
-            if(viewId === 'view-krono2') {
-                document.getElementById('krono2-user-display').innerText = userEmail;
-            }
-        }
-
-        // Logout
-        function logout() {
-            document.getElementById('view-krono2').classList.add('hidden');
-            document.getElementById('view-kronodual2').classList.add('hidden');
-            document.getElementById('view-login').classList.remove('hidden');
-            
-            // Limpiar campos
-            document.getElementById('loginForm').reset();
-            document.getElementById('status-indicator').innerText = "Sistema bloqueado";
-            document.title = "Acceso Krono System";
-            document.getElementById('error-message').classList.add('hidden');
-        }
     </script>
 </body>
 </html>
