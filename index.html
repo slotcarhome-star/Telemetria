@@ -44,6 +44,15 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .error-msg {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -54,135 +63,111 @@
             <div class="text-xl font-bold logo-font text-blue-400">
                 <i class="fa-solid fa-atom mr-2"></i>KRONO<span class="text-white">SYS</span>
             </div>
-            <div class="text-xs text-gray-500" id="status-indicator">Sistema en espera</div>
+            <div class="text-xs text-gray-500" id="status-indicator">Sistema bloqueado</div>
         </div>
     </nav>
 
     <!-- Contenedor Principal -->
     <main class="flex-grow container mx-auto p-4 flex items-center justify-center relative">
         
-        <!-- VISTA 1: Login / Creación de Código -->
+        <!-- VISTA 1: Login Simple -->
         <div id="view-login" class="w-full max-w-md glass-panel p-8 rounded-2xl shadow-2xl fade-in relative z-10">
             <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Acceso Seguro</h1>
-                <p class="text-gray-400 text-sm">Genera tu código de sesión</p>
+                <h1 class="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Identificación</h1>
+                <p class="text-gray-400 text-sm">Ingresa tus credenciales</p>
+            </div>
+
+            <!-- Mensaje de error oculto -->
+            <div id="error-message" class="hidden mb-4 p-3 bg-red-900/50 border border-red-500/50 rounded text-red-200 text-xs text-center">
+                <i class="fa-solid fa-circle-exclamation mr-1"></i> Credenciales incorrectas
             </div>
 
             <form id="loginForm" class="space-y-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Correo Electrónico</label>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Usuario</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="fa-solid fa-envelope text-gray-500"></i>
+                            <i class="fa-solid fa-user text-gray-500"></i>
                         </div>
-                        <input type="email" id="email" required placeholder="nombre@ejemplo.com" 
+                        <input type="email" id="email" required placeholder="usuario@sistema.com" 
                             class="input-field w-full pl-10 pr-3 py-3 rounded-lg text-white placeholder-gray-500">
-                    </div>
-                    <!-- Pistas para el usuario (Ahora simplificadas visualmente) -->
-                    <div class="mt-2 text-xs text-gray-500">
-                        <p class="opacity-60">El sistema detectará automáticamente el tipo de usuario según el dominio.</p>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Código de Acceso (Ficticio)</label>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Contraseña</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="fa-solid fa-key text-gray-500"></i>
+                            <i class="fa-solid fa-lock text-gray-500"></i>
                         </div>
-                        <input type="text" id="code" placeholder="Generando código..." readonly 
-                            class="input-field w-full pl-10 pr-3 py-3 rounded-lg text-green-400 font-mono tracking-widest cursor-not-allowed opacity-80">
-                        <button type="button" id="btn-generate" class="absolute right-2 top-2 text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-white transition">
-                            Regenerar
-                        </button>
+                        <input type="password" id="password" required placeholder="••••••••" 
+                            class="input-field w-full pl-10 pr-3 py-3 rounded-lg text-white placeholder-gray-500">
                     </div>
                 </div>
 
                 <button type="submit" 
                     class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform transition hover:-translate-y-1 active:translate-y-0">
-                    Entrar al Sistema
+                    Iniciar Sesión
                 </button>
             </form>
 
-            <!-- SECCIÓN NUEVA: Botones de Prueba Automática -->
+            <!-- Botones de Ayuda (Para no tener que escribir) -->
             <div class="mt-8 pt-6 border-t border-gray-700/50">
-                <p class="text-xs text-gray-400 mb-4 text-center uppercase tracking-wider font-semibold">Generar Credenciales de Prueba</p>
+                <p class="text-xs text-gray-400 mb-4 text-center">Accesos Rápidos (Demo)</p>
                 <div class="grid grid-cols-2 gap-4">
-                    <button type="button" onclick="autoLogin('standard')" 
-                        class="flex flex-col items-center justify-center p-3 bg-slate-800 hover:bg-blue-900/30 border border-slate-700 hover:border-blue-500/50 rounded-lg transition group">
-                        <i class="fa-solid fa-user text-blue-400 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
-                        <span class="text-xs text-blue-200 font-bold">Krono 2</span>
-                        <span class="text-[10px] text-gray-500 mt-1">Acceso Estándar</span>
+                    <button type="button" onclick="fillCredentials('krono')" 
+                        class="text-xs bg-slate-800 hover:bg-slate-700 text-blue-300 py-2 rounded border border-slate-600 transition">
+                        Opción A: Krono 2<br>
+                        <span class="text-[10px] text-gray-500">(1234)</span>
                     </button>
                     
-                    <button type="button" onclick="autoLogin('dual')" 
-                        class="flex flex-col items-center justify-center p-3 bg-slate-800 hover:bg-orange-900/30 border border-slate-700 hover:border-orange-500/50 rounded-lg transition group">
-                        <i class="fa-solid fa-layer-group text-orange-400 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
-                        <span class="text-xs text-orange-200 font-bold">Krono Dual</span>
-                        <span class="text-[10px] text-gray-500 mt-1">Acceso Avanzado</span>
+                    <button type="button" onclick="fillCredentials('dual')" 
+                        class="text-xs bg-slate-800 hover:bg-slate-700 text-orange-300 py-2 rounded border border-slate-600 transition">
+                        Opción B: Dual<br>
+                        <span class="text-[10px] text-gray-500">(5678)</span>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- VISTA 2: KRONO 2 (krono2.html simulado) -->
+        <!-- VISTA 2: KRONO 2 (Interfaz Azul) -->
         <div id="view-krono2" class="hidden w-full max-w-4xl fade-in">
             <div class="glass-panel rounded-2xl overflow-hidden border-blue-500/30 border">
-                <!-- Header específico -->
                 <div class="bg-blue-900/30 p-6 border-b border-blue-500/20 flex justify-between items-center">
                     <div>
                         <h2 class="text-2xl text-blue-400 font-bold tracking-wider">KRONO 2.0</h2>
-                        <span class="text-xs text-blue-200 uppercase tracking-widest">Interfaz Estándar</span>
+                        <span class="text-xs text-blue-200 uppercase tracking-widest">Panel Estándar</span>
                     </div>
                     <div class="h-8 w-8 rounded-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-pulse"></div>
                 </div>
                 
                 <div class="p-8">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- Dashboard Dummy -->
                         <div class="col-span-2 space-y-4">
                             <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-                                <h3 class="text-lg font-bold mb-2">Estado del Servidor</h3>
-                                <div class="w-full bg-gray-700 rounded-full h-2.5 mb-1">
-                                    <div class="bg-blue-500 h-2.5 rounded-full" style="width: 45%"></div>
-                                </div>
-                                <p class="text-xs text-right text-gray-400">45% Carga</p>
-                            </div>
-                            <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-                                <h3 class="text-lg font-bold mb-2">Archivos Recientes</h3>
-                                <ul class="text-sm space-y-2 text-gray-300">
-                                    <li class="flex justify-between"><span>reporte_alpha.log</span> <span class="text-blue-400">Ver</span></li>
-                                    <li class="flex justify-between"><span>secuencia_b.dat</span> <span class="text-blue-400">Ver</span></li>
-                                </ul>
+                                <h3 class="text-lg font-bold mb-2">Resumen</h3>
+                                <p class="text-sm text-gray-300">Bienvenido al sistema estándar. Aquí puedes gestionar las tareas básicas.</p>
                             </div>
                         </div>
-                        <!-- Info Panel -->
                         <div class="bg-blue-900/10 p-4 rounded-lg border border-blue-500/20">
-                            <h3 class="text-blue-300 font-bold mb-4">Usuario Conectado</h3>
-                            <div class="text-center mb-4">
-                                <i class="fa-solid fa-user-astronaut text-4xl text-blue-400 mb-2"></i>
-                                <p id="krono2-user-display" class="text-sm font-mono break-all"></p>
-                            </div>
-                            <div class="text-xs text-gray-400 text-center">
-                                Acceso concedido vía Protocolo K2.
-                            </div>
+                            <h3 class="text-blue-300 font-bold mb-2">Usuario</h3>
+                            <p id="krono2-user-display" class="text-sm text-gray-300 break-all"></p>
                         </div>
                     </div>
                 </div>
                 <div class="p-4 bg-slate-900/50 text-right">
-                    <button onclick="logout()" class="text-sm text-red-400 hover:text-red-300 underline">Cerrar Sesión</button>
+                    <button onclick="logout()" class="text-sm text-red-400 hover:text-red-300 underline">Salir</button>
                 </div>
             </div>
         </div>
 
-        <!-- VISTA 3: KRONO DUAL 2 (kronodual2.html simulado) -->
+        <!-- VISTA 3: KRONO DUAL 2 (Interfaz Naranja/Roja) -->
         <div id="view-kronodual2" class="hidden w-full max-w-5xl fade-in">
             <div class="glass-panel rounded-2xl overflow-hidden border-orange-500/30 border">
-                <!-- Header específico -->
                 <div class="bg-gradient-to-r from-orange-900/40 to-red-900/40 p-6 border-b border-orange-500/20 flex justify-between items-center">
                     <div>
                         <h2 class="text-3xl text-orange-400 font-bold tracking-wider">KRONO <span class="text-white">DUAL</span> II</h2>
-                        <span class="text-xs text-orange-200 uppercase tracking-widest">Modo Avanzado / Doble Núcleo</span>
+                        <span class="text-xs text-orange-200 uppercase tracking-widest">Modo Administrador</span>
                     </div>
                     <div class="flex gap-2">
                         <div class="h-3 w-3 bg-orange-500 rounded-full"></div>
@@ -191,44 +176,23 @@
                 </div>
                 
                 <div class="p-8 relative">
-                    <!-- Decoración de fondo -->
                     <div class="absolute top-0 right-0 w-64 h-64 bg-orange-600/10 rounded-full blur-3xl -z-10"></div>
-
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <!-- Núcleo A -->
-                        <div class="border border-orange-500/30 rounded-xl p-6 bg-slate-900/60 relative overflow-hidden group hover:border-orange-500/60 transition">
-                            <div class="absolute top-0 right-0 p-2 opacity-20 text-6xl font-bold">A</div>
-                            <h3 class="text-xl text-orange-400 font-bold mb-4"><i class="fa-solid fa-microchip mr-2"></i>Núcleo Primario</h3>
-                            <div class="space-y-3 font-mono text-sm text-green-400">
-                                <p>> Iniciando secuencia...</p>
-                                <p>> Encriptación: AES-256</p>
-                                <p>> Estado: <span class="animate-pulse">ACTIVO</span></p>
-                            </div>
+                        <!-- Panel A -->
+                        <div class="border border-orange-500/30 rounded-xl p-6 bg-slate-900/60">
+                            <h3 class="text-xl text-orange-400 font-bold mb-4">Sistema Alpha</h3>
+                            <p class="text-sm text-gray-400">Control de núcleo primario activado.</p>
                         </div>
-
-                        <!-- Núcleo B -->
-                        <div class="border border-red-500/30 rounded-xl p-6 bg-slate-900/60 relative overflow-hidden group hover:border-red-500/60 transition">
-                            <div class="absolute top-0 right-0 p-2 opacity-20 text-6xl font-bold">B</div>
-                            <h3 class="text-xl text-red-400 font-bold mb-4"><i class="fa-solid fa-network-wired mr-2"></i>Red Secundaria</h3>
-                            <div class="grid grid-cols-3 gap-2 mt-4">
-                                <div class="bg-red-900/40 h-16 rounded flex items-center justify-center text-red-300 text-xs border border-red-500/20">DATA 1</div>
-                                <div class="bg-red-900/40 h-16 rounded flex items-center justify-center text-red-300 text-xs border border-red-500/20">DATA 2</div>
-                                <div class="bg-red-900/40 h-16 rounded flex items-center justify-center text-red-300 text-xs border border-red-500/20">DATA 3</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-8 p-4 border-t border-gray-700 flex justify-between items-center">
-                        <span class="text-gray-400 font-mono text-sm">ID Sesión: <span id="dual-session-id" class="text-white"></span></span>
-                        <div class="text-right">
-                            <p class="text-xs text-orange-300 mb-1">Usuario Dual</p>
-                            <p id="kronodual2-user-display" class="font-bold"></p>
+                        <!-- Panel B -->
+                        <div class="border border-red-500/30 rounded-xl p-6 bg-slate-900/60">
+                            <h3 class="text-xl text-red-400 font-bold mb-4">Sistema Beta</h3>
+                            <p class="text-sm text-gray-400">Red de seguridad secundaria en línea.</p>
                         </div>
                     </div>
                 </div>
                 <div class="p-4 bg-black/40 text-center border-t border-orange-500/20">
                     <button onclick="logout()" class="px-6 py-2 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-white transition uppercase text-xs tracking-widest">
-                        Abortar Sesión
+                        Cerrar Sesión Dual
                     </button>
                 </div>
             </div>
@@ -237,98 +201,86 @@
     </main>
 
     <footer class="p-4 text-center text-xs text-gray-600">
-        &copy; 2026 KRONO SYSTEMS. Todos los derechos reservados.
+        &copy; 2026 KRONO SYSTEMS
     </footer>
 
     <script>
-        // Función para generar un código aleatorio al estilo "KRONO"
-        function generateRandomCode() {
-            const chars = 'ABCDEF0123456789';
-            let code = 'K-';
-            for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-            code += '-';
-            for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-            return code;
-        }
+        // Credenciales harcodeadas para la demo
+        const CREDENTIALS = {
+            KRONO2: { user: 'krono@test.com', pass: '1234' },
+            DUAL:   { user: 'dual@test.com',  pass: '5678' }
+        };
 
-        // Inicializar código al cargar
-        document.addEventListener('DOMContentLoaded', () => {
-            const codeInput = document.getElementById('code');
-            codeInput.value = generateRandomCode();
-
-            document.getElementById('btn-generate').addEventListener('click', () => {
-                codeInput.value = generateRandomCode();
-            });
-        });
-
-        // NUEVA FUNCIÓN: Auto Login para pruebas
-        function autoLogin(type) {
+        // Función para rellenar automáticamente (para pruebas)
+        function fillCredentials(type) {
             const emailInput = document.getElementById('email');
+            const passInput = document.getElementById('password');
             
-            // Generar un código fresco para la sensación de "nuevo acceso"
-            document.getElementById('code').value = generateRandomCode();
-
-            if (type === 'standard') {
-                // Genera un usuario aleatorio estándar
-                const randomId = Math.floor(Math.random() * 9000) + 1000;
-                emailInput.value = `operador_${randomId}@krono.com`;
-            } else {
-                // Genera un usuario aleatorio dual
-                const randomId = Math.floor(Math.random() * 9000) + 1000;
-                emailInput.value = `admin_${randomId}@dual-core.system`;
+            if (type === 'krono') {
+                emailInput.value = CREDENTIALS.KRONO2.user;
+                passInput.value = CREDENTIALS.KRONO2.pass;
+            } else if (type === 'dual') {
+                emailInput.value = CREDENTIALS.DUAL.user;
+                passInput.value = CREDENTIALS.DUAL.pass;
             }
-
-            // Simular clic en el botón de entrar después de una pequeña pausa visual
-            // Efecto visual: resaltar el campo
-            emailInput.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
-            setTimeout(() => {
-                document.querySelector('button[type="submit"]').click();
-                // Resetear estilo
-                setTimeout(() => { emailInput.style.backgroundColor = ''; }, 500);
-            }, 300);
         }
 
-        // Manejo del formulario
+        // Manejo del Login
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const email = document.getElementById('email').value.toLowerCase();
-            const code = document.getElementById('code').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('error-message');
 
-            // Lógica de enrutamiento simulado
-            // Si el correo contiene "dual", va a kronodual2.html
-            // De lo contrario, va a krono2.html
+            // Resetear estados
+            errorMsg.classList.add('hidden');
             
-            // Ocultar login
-            document.getElementById('view-login').classList.add('hidden');
-            
-            if (email.includes('dual')) {
-                // Simular carga de kronodual2.html
-                document.getElementById('view-kronodual2').classList.remove('hidden');
-                document.getElementById('kronodual2-user-display').innerText = email;
-                document.getElementById('dual-session-id').innerText = code;
-                document.getElementById('status-indicator').innerText = "VISTA: kronodual2.html";
-                document.title = "Krono Dual 2 | Panel Avanzado";
-            } else {
-                // Simular carga de krono2.html
-                document.getElementById('view-krono2').classList.remove('hidden');
-                document.getElementById('krono2-user-display').innerText = email;
-                document.getElementById('status-indicator').innerText = "VISTA: krono2.html";
-                document.title = "Krono 2 | Panel Estándar";
+            // Lógica estricta
+            if (email === CREDENTIALS.KRONO2.user && password === CREDENTIALS.KRONO2.pass) {
+                // EXITO CASO 1: Krono 2
+                launchView('view-krono2', email, "Krono 2 | Estándar");
+            } 
+            else if (email === CREDENTIALS.DUAL.user && password === CREDENTIALS.DUAL.pass) {
+                // EXITO CASO 2: Krono Dual
+                launchView('view-kronodual2', email, "Krono Dual | Avanzado");
+            } 
+            else {
+                // ERROR
+                errorMsg.classList.remove('hidden');
+                errorMsg.classList.add('error-msg');
+                setTimeout(() => errorMsg.classList.remove('error-msg'), 500);
             }
         });
 
-        // Función para volver al inicio (Logout simulado)
+        function launchView(viewId, userEmail, title) {
+            // Ocultar login
+            document.getElementById('view-login').classList.add('hidden');
+            
+            // Mostrar vista objetivo
+            document.getElementById(viewId).classList.remove('hidden');
+            
+            // Actualizar UI
+            document.getElementById('status-indicator').innerText = "CONECTADO: " + userEmail;
+            document.title = title;
+            
+            // Si es krono2, actualizamos el nombre
+            if(viewId === 'view-krono2') {
+                document.getElementById('krono2-user-display').innerText = userEmail;
+            }
+        }
+
+        // Logout
         function logout() {
             document.getElementById('view-krono2').classList.add('hidden');
             document.getElementById('view-kronodual2').classList.add('hidden');
             document.getElementById('view-login').classList.remove('hidden');
             
-            // Resetear formulario y título
+            // Limpiar campos
             document.getElementById('loginForm').reset();
-            document.getElementById('code').value = generateRandomCode();
-            document.getElementById('status-indicator').innerText = "Sistema en espera";
+            document.getElementById('status-indicator').innerText = "Sistema bloqueado";
             document.title = "Acceso Krono System";
+            document.getElementById('error-message').classList.add('hidden');
         }
     </script>
 </body>
